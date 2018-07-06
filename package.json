@@ -1,0 +1,32 @@
+{
+  "name": "fryge-rss-sync",
+  "version": "0.0.1",
+  "author": {
+    "name": "Daniel Goldshlack",
+    "email": "daniel@goldshlack.net"
+  },
+  "description": "Use this to create and maintain a local copy of all data from a set of rss feeds.",
+  "repository": "https://github.com/dangoldnj/fryge-rss-sync",
+  "license": "MIT",
+  "scripts": {
+    "start": "node server.js",
+    "test": "xo"
+  },
+  "dependencies": {
+    "request": "^2.87.0",
+    "rss-parser": "^3.4.2"
+  },
+  "devDependencies": {
+    "xo": "^0.21.1"
+  },
+  "xo": {
+    "rules": {
+      "comma-dangle": ["error", "always-multiline"],
+      "object-curly-spacing": ["error", "always"],
+      "prefer-promise-reject-errors": 0,
+      "template-curly-spacing": ["error", "always"],
+      "unicorn/filename-case": "camelCase"
+    },
+    "space": true
+  }
+}

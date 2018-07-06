@@ -1,0 +1,22 @@
+{
+  "feeds": [
+    {
+      "name": "KCRW: Today's Top Tune",
+      "rss": "http://www.kcrw.com/podcast/show/tu"
+    },
+    {
+      "name": "99% Invisible",
+      "policy": {
+        "fetchAllItems": true
+      },
+      "rss": "http://feeds.99percentinvisible.org/99percentinvisible"
+    },
+    {
+      "name": "Comedy Bang Bang: The Podcast",
+      "policy": {
+        "fetchAllItems": false
+      },
+      "rss": "http://rss.earwolf.com/comedy-bang-bang"
+    }
+  ]
+}
