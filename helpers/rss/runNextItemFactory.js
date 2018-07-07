@@ -75,8 +75,8 @@ const runNextItemFactory = opts => {
         `percent: ${ percentOff }`);
       // NOTE: turns out people can change the size of a file after the
       // enclosure has been created. How can we ever handle this? Let's
-      // just assume it can be within 15% (?) of the expected size..
-      fileExistsCorrectly = percentOff < 15;
+      // just assume it can be within 33% (?) of the expected size..
+      fileExistsCorrectly = percentOff < 33;
     }
     if (fileExistsCorrectly) {
       console.log(` > File exists, skipping download`);
