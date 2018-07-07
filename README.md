@@ -35,7 +35,7 @@
 
 ## Installation
 
-  Clone the repo, modify `feeds.json` to your liking, and run `npm run start` to scan all the feeds and download new files.
+  Clone the repo, run `npm install`, modify `feeds.json` to your liking, and run `npm run start` to scan all the feeds and download new files.
 
 ## Configuration
 
