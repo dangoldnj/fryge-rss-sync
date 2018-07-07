@@ -1,4 +1,3 @@
-const { exec } = require('child_process');
 const { existsSync } = require('fs');
 const { mkdirSync } = require('node-fs');
 
