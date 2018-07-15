@@ -7,6 +7,8 @@ const {
   writeItemMetadata,
 } = require('../local');
 
+const audioFiletypesRegex = /([.](mp3|m4a|aac|mp4|m4p|m4r|3gp|ogg|oga|wma|raw|wav|flac))/;
+
 const runNextItemFactory = opts => {
   const {
     items,
@@ -61,8 +63,11 @@ const runNextItemFactory = opts => {
     console.log(`Item ${ itemCount }: (${ pubDate } / ${ guid })`);
     console.log(`${ title }\n${ url }`);
     const enclosureFilename = path.basename(url);
-    const destinationFilename = path.join(dirName, enclosureFilename);
-    const metadataFile = path.join(metadataDirname, `${ enclosureFilename }.json`);
+    const fileTypeMatches = audioFiletypesRegex.exec(enclosureFilename);
+    const fileTypeString = fileTypeMatches[1];
+    const safeEnclosureFilename = enclosureFilename.replace(fileTypeString, '').replace(/[=&<>:'"/\\|?*]/g, ' ').replace(/\s+/g, '-') + fileTypeString;
+    const destinationFilename = path.join(dirName, safeEnclosureFilename);
+    const metadataFile = path.join(metadataDirname, `${ safeEnclosureFilename }.json`);
     let fileExistsCorrectly = false;
     if (fs.existsSync(destinationFilename)) {
       const stats = fs.statSync(destinationFilename) || { size: 0 };
