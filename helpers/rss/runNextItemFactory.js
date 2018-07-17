@@ -37,14 +37,14 @@ const runNextItemFactory = opts => {
   let itemCount = 0;
   let downloadedCount = 0;
 
-  const cleanupFunction = (opts) => {
+  const cleanupFunction = (opts = {}) => {
     commentCompletion(opts);
     return runNextFeed();
   };
 
   let itemComments = [];
   const itemTerm = count => `item${ count !== 1 ? 's': ''}`;
-  const commentCompletion = ({ forceComments = false }) => {
+  const commentCompletion = ({ forceComments = false } = {}) => {
     if (forceComments) {
       console.log(`Total: ${ itemCount } ${ itemTerm(itemCount) } seen /` +
         ` ${ downloadedCount } ${ itemTerm(downloadedCount) } downloaded.`);
@@ -53,9 +53,11 @@ const runNextItemFactory = opts => {
   };
   const showComments = () => {
     itemComments.forEach(item => console.log(item));
+    commentCompletion();
   };
 
   const runNextItem = () => {
+    commentCompletion();
     currentItem++;
     if (currentItem >= maxItems) {
       return cleanupFunction({ forceComments: true });
@@ -109,13 +111,11 @@ const runNextItemFactory = opts => {
       if (!showOnlyDownloads) {
         showComments();
       }
-      commentCompletion();
       return runNextItem();
     }
     itemComments.push(` > Downloading file now ...`);
     downloadedCount++;
     showComments();
-    commentCompletion();
     downloadFile(url, destinationFilename)
       .then(() => writeItemMetadata(metadataFile, item))
       .then(runNextItem)
