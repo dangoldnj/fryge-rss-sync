@@ -7,7 +7,7 @@ const {
   writeItemMetadata,
 } = require('../local');
 
-const audioFiletypesRegex = /([.](mp3|m4a|aac|mp4|m4p|m4r|3gp|ogg|oga|wma|raw|wav|flac))/;
+const fileTypesRegex = /([.](mp3|m4a|aac|mp4|m4p|m4r|3gp|ogg|oga|wma|raw|wav|flac|m4v))/;
 
 const runNextItemFactory = opts => {
   const {
@@ -63,7 +63,10 @@ const runNextItemFactory = opts => {
     console.log(`Item ${ itemCount }: (${ pubDate } / ${ guid })`);
     console.log(`${ title }\n${ url }`);
     const enclosureFilename = path.basename(url);
-    const fileTypeMatches = audioFiletypesRegex.exec(enclosureFilename);
+    const fileTypeMatches = fileTypesRegex.exec(enclosureFilename);
+    if (!fileTypeMatches) {
+      console.log('!', enclosureFilename, fileTypeMatches);
+    }
     const fileTypeString = fileTypeMatches[1];
     const safeEnclosureFilename = enclosureFilename.replace(fileTypeString, '').replace(/[=&<>:'"/\\|?*]/g, ' ').replace(/\s+/g, '-') + fileTypeString;
     const destinationFilename = path.join(dirName, safeEnclosureFilename);
