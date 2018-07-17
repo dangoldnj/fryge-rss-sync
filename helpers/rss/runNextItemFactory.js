@@ -44,7 +44,7 @@ const runNextItemFactory = opts => {
 
   let itemComments = [];
   const commentCompletion = forceComments => {
-    if (downloadedCount || forceComments) {
+    if (forceComments) {
       console.log(`Total: ${ itemCount } item${ itemCount !== 1 ? 's': ''} seen /` +
         ` ${ downloadedCount } item${ downloadedCount !== 1 ? 's': ''} downloaded.`);
     }
