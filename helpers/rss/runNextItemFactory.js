@@ -37,29 +37,28 @@ const runNextItemFactory = opts => {
   let itemCount = 0;
   let downloadedCount = 0;
 
-  const cleanupFunction = forceComments => {
-    doNotShowComments(forceComments);
+  const cleanupFunction = (opts) => {
+    commentCompletion(opts);
     return runNextFeed();
   };
 
   let itemComments = [];
-  const commentCompletion = forceComments => {
+  const itemTerm = count => `item${ count !== 1 ? 's': ''}`;
+  const commentCompletion = ({ forceComments = false }) => {
     if (forceComments) {
-      console.log(`Total: ${ itemCount } item${ itemCount !== 1 ? 's': ''} seen /` +
-        ` ${ downloadedCount } item${ downloadedCount !== 1 ? 's': ''} downloaded.`);
+      console.log(`Total: ${ itemCount } ${ itemTerm(itemCount) } seen /` +
+        ` ${ downloadedCount } ${ itemTerm(downloadedCount) } downloaded.`);
     }
     itemComments = [];
   };
   const showComments = () => {
     itemComments.forEach(item => console.log(item));
-    commentCompletion();
   };
-  const doNotShowComments = (forceComments) => commentCompletion(forceComments);
 
   const runNextItem = () => {
     currentItem++;
     if (currentItem >= maxItems) {
-      return cleanupFunction(true);
+      return cleanupFunction({ forceComments: true });
     }
     const item = items[currentItem];
     const {
@@ -109,9 +108,8 @@ const runNextItemFactory = opts => {
       itemComments.push(` > File exists, skipping download`);
       if (!showOnlyDownloads) {
         showComments();
-      } else {
-        doNotShowComments();
       }
+      commentCompletion();
       return runNextItem();
     }
     itemComments.push(` > Downloading file now ...`);
