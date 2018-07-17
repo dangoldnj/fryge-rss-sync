@@ -89,7 +89,9 @@ const runNextItemFactory = opts => {
     const destinationFilename = path.join(dirName, safeEnclosureFilename);
     const metadataFile = path.join(metadataDirname, `${ safeEnclosureFilename }.json`);
     let fileExistsCorrectly = false;
-    if (fs.existsSync(destinationFilename)) {
+    const fileExistsAtAll = fs.existsSync(destinationFilename);
+    const rssSizeProvided = length > 0;
+    if (fileExistsAtAll && rssSizeProvided) {
       const stats = fs.statSync(destinationFilename) || { size: 0 };
       const fileSizeInBytes = stats.size;
       const differenceInBytes = Math.abs(length - fileSizeInBytes);
@@ -103,7 +105,7 @@ const runNextItemFactory = opts => {
       // just assume it can be within 33% (?) of the expected size..
       fileExistsCorrectly = percentOff < 33;
     }
-    if (fileExistsCorrectly) {
+    if ((fileExistsAtAll && !rssSizeProvided) || fileExistsCorrectly) {
       itemComments.push(` > File exists, skipping download`);
       if (!showOnlyDownloads) {
         showComments();
