@@ -115,6 +115,7 @@ const runNextItemFactory = opts => {
     itemComments.push(` > Downloading file now ...`);
     downloadedCount++;
     showComments();
+    commentCompletion();
     downloadFile(url, destinationFilename)
       .then(() => writeItemMetadata(metadataFile, item))
       .then(runNextItem)
