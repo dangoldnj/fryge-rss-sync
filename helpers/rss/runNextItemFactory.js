@@ -8,6 +8,7 @@ const {
 } = require('../local');
 
 const fileTypesRegex = /([.](mp3|m4a|aac|mp4|m4p|m4r|3gp|ogg|oga|wma|raw|wav|flac|m4v))/;
+const showOnlyDownloads = true;
 
 const runNextItemFactory = opts => {
   const {
@@ -34,15 +35,31 @@ const runNextItemFactory = opts => {
   const maxItems = items.length;
   let currentItem = -1;
   let itemCount = 0;
+  let downloadedCount = 0;
 
-  const cleanupFunction = () => {
+  const cleanupFunction = forceComments => {
+    doNotShowComments(forceComments);
     return runNextFeed();
   };
+
+  let itemComments = [];
+  const commentCompletion = forceComments => {
+    if (downloadedCount || forceComments) {
+      console.log(`Total: ${ itemCount } item${ itemCount !== 1 ? 's': ''} seen /` +
+        ` ${ downloadedCount } item${ downloadedCount !== 1 ? 's': ''} downloaded.`);
+    }
+    itemComments = [];
+  };
+  const showComments = () => {
+    itemComments.forEach(item => console.log(item));
+    commentCompletion();
+  };
+  const doNotShowComments = (forceComments) => commentCompletion(forceComments);
 
   const runNextItem = () => {
     currentItem++;
     if (currentItem >= maxItems) {
-      return cleanupFunction();
+      return cleanupFunction(true);
     }
     const item = items[currentItem];
     const {
@@ -60,8 +77,8 @@ const runNextItemFactory = opts => {
       return runNextItem();
     }
     itemCount++;
-    console.log(`Item ${ itemCount }: (${ pubDate } / ${ guid })`);
-    console.log(`${ title }\n${ url }`);
+    itemComments.push(`Item ${ itemCount }: (${ pubDate } / ${ guid })`);
+    itemComments.push(`${ title }\n${ url }`);
     const enclosureFilename = path.basename(url);
     const fileTypeMatches = fileTypesRegex.exec(enclosureFilename);
     if (!fileTypeMatches) {
@@ -77,7 +94,7 @@ const runNextItemFactory = opts => {
       const fileSizeInBytes = stats.size;
       const differenceInBytes = Math.abs(length - fileSizeInBytes);
       const percentOff = differenceInBytes * 100 / length;
-      console.log(`* size comparison * expected: ${ length } / ` +
+      itemComments.push(`* size comparison * expected: ${ length } / ` +
         `found: ${ fileSizeInBytes } / ` +
         `divergence: ${ differenceInBytes } / ` +
         `percent: ${ percentOff }`);
@@ -87,10 +104,17 @@ const runNextItemFactory = opts => {
       fileExistsCorrectly = percentOff < 33;
     }
     if (fileExistsCorrectly) {
-      console.log(` > File exists, skipping download`);
+      itemComments.push(` > File exists, skipping download`);
+      if (!showOnlyDownloads) {
+        showComments();
+      } else {
+        doNotShowComments();
+      }
       return runNextItem();
     }
-    console.log(` > Downloading file now ...`);
+    itemComments.push(` > Downloading file now ...`);
+    downloadedCount++;
+    showComments();
     downloadFile(url, destinationFilename)
       .then(() => writeItemMetadata(metadataFile, item))
       .then(runNextItem)
