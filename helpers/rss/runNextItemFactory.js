@@ -16,6 +16,7 @@ const runNextItemFactory = opts => {
     policy: {
       downloadRoot,
       fetchAllItems,
+      ignoreByGuid,
       oldestDownload,
     } = {},
     runNextFeed,
@@ -74,7 +75,8 @@ const runNextItemFactory = opts => {
     } = item;
     const itemPubDate = new Date(pubDate);
     const itemPubDateOK = fetchAllItems || itemPubDate > oldestDownload;
-    if (!url || !itemPubDateOK) {
+    const ignoredByGuid = ignoreByGuid && ignoreByGuid.includes(guid);
+    if (!url || !itemPubDateOK || ignoredByGuid) {
       return runNextItem();
     }
     itemCount++;
