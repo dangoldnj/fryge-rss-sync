@@ -1,3 +1,6 @@
+# fryge-rss-sync specific
+feeds.json
+
 # Logs
 logs
 *.log
