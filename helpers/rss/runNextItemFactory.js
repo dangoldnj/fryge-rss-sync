@@ -86,7 +86,7 @@ const runNextItemFactory = opts => {
       console.log('!', enclosureFilename, fileTypeMatches);
     }
     const fileTypeString = fileTypeMatches[1];
-    const safeEnclosureFilename = enclosureFilename.replace(fileTypeString, '').replace(/[=&<>:'"/\\|?*]/g, ' ').replace(/\s+/g, '-') + fileTypeString;
+    const safeEnclosureFilename = enclosureFilename.replace(fileTypeString, '').replace(/[=&<>:'"/\\|?*]/g, ' ').replace(/\s+/g, '-').substr(0, 245) + fileTypeString;
     const destinationFilename = path.join(dirName, safeEnclosureFilename);
     const metadataFile = path.join(metadataDirname, `${ safeEnclosureFilename }.json`);
     let fileExistsCorrectly = false;
