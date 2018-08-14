@@ -16,7 +16,11 @@ const downloadFile = (url, localFilename) => {
     req.on('response', res => {
       const { statusCode } = res;
       if (statusCode !== 200) {
-        fs.unlink(localFilename);
+        fs.unlink(localFilename, err => {
+          if (err) {
+            throw err;
+          }
+        });
         const err = `Status ${ statusCode } encountered.`;
         reject(`Error! Cannot download enclosure '${ url }': ${ err }`);
       }
