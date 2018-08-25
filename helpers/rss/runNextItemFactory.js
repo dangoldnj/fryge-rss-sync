@@ -7,6 +7,7 @@ const {
   writeItemMetadata,
 } = require('../local');
 
+const DEFAULT_FILE_TYPE_ENDING = '.mp3';
 const fileTypesRegex = /([.](mp3|m4a|aac|mp4|m4p|m4r|3gp|ogg|oga|wma|raw|wav|flac|m4v))/;
 const showOnlyDownloads = true;
 
@@ -85,9 +86,11 @@ const runNextItemFactory = opts => {
     const enclosureFilename = path.basename(url);
     const fileTypeMatches = fileTypesRegex.exec(enclosureFilename);
     if (!fileTypeMatches) {
-      console.log('!', enclosureFilename, fileTypeMatches);
+      console.log('Warning - no file extension detected!', enclosureFilename, fileTypeMatches);
     }
-    const fileTypeString = fileTypeMatches[1];
+    const fileTypeString = fileTypeMatches
+      ? fileTypeMatches[1]
+      : DEFAULT_FILE_TYPE_ENDING;
     const safeEnclosureFilename = enclosureFilename.replace(fileTypeString, '').replace(/[=&<>:'"/\\|?*]/g, ' ').replace(/\s+/g, '-').substr(0, 245) + fileTypeString;
     const destinationFilename = path.join(dirName, safeEnclosureFilename);
     const metadataFile = path.join(metadataDirname, `${ safeEnclosureFilename }.json`);
