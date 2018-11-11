@@ -3,7 +3,10 @@ const RssParser = require('rss-parser');
 const { getDefaultPolicy } = require('./getDefaultPolicy');
 const { runNextItemFactory } = require('./runNextItemFactory');
 
-const runNextFeedFactory = feeds => {
+const runNextFeedFactory = (feeds, opts) => {
+  const {
+    topDefaultPolicy = {},
+  } = opts;
   const maxFeeds = feeds.length;
   const parser = new RssParser();
   let currentFeed = -1;
@@ -15,13 +18,14 @@ const runNextFeedFactory = feeds => {
     }
     const {
       name,
-      policy: foundPolicy = {},
+      policy: feedItemPolicy = {},
       rss,
     } = feeds[currentFeed];
 
     const policy = Object.assign({},
       getDefaultPolicy(),
-      foundPolicy
+      topDefaultPolicy,
+      feedItemPolicy
     );
 
     console.log(`\nLoading the feed '${ name }' at '${ rss }':`);

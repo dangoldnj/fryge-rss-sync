@@ -9,18 +9,30 @@ if (!feedsPresent) {
   console.log('Create your personal `feeds.json`, please!');
 }
 
+const emptyFeedObject = () => ({
+  defaultPolicy: {},
+  feeds: [],
+});
+
 const FEEDS = feedsPresent
   ? require(feedsPath)
-  : { feeds: [] };
+  : emptyFeedObject();
 
 const {
+  defaultPolicy = {},
   feeds = [],
 } = FEEDS;
+
+const getFeedDefaultPolicy = () => {
+  return defaultPolicy;
+}
 
 const getFeeds = () => {
   return feeds;
 };
 
 module.exports = {
+  emptyFeedObject,
+  getFeedDefaultPolicy,
   getFeeds,
 };
