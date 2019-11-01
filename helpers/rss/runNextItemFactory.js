@@ -11,6 +11,52 @@ const DEFAULT_FILE_TYPE_ENDING = '.mp3';
 const fileTypesRegex = /([.](mp3|m4a|aac|mp4|m4p|m4r|3gp|ogg|oga|wma|raw|wav|flac|m4v))/;
 const showOnlyDownloads = true;
 
+const filterUnsafeFilenameChars = input => {
+  const text = input
+    .replace(/[=&<>:'"/\\|?*]/g, ' ')
+    .replace(/\s+/g, '-')
+    .substr(0, 245);
+  return text;
+};
+
+const keepFileExtensionAndFilter = (input, fileType) => {
+  const stripExtension = input.replace(fileType, '');
+  const text = filterUnsafeFilenameChars(stripExtension) + fileType;
+  return text;
+}
+
+const checkIfEnclosureExists = (opts) => {
+  const {
+    destinationFilepath,
+    length = 0,
+  } = opts;
+  let fileExistsCorrectly = false;
+  let itemComment;
+  const fileExistsAtAll = fs.existsSync(destinationFilepath);
+  const rssSizeProvided = length > 0;
+  if (fileExistsAtAll && rssSizeProvided) {
+    const stats = fs.statSync(destinationFilepath) || { size: 0 };
+    const fileSizeInBytes = stats.size;
+    const differenceInBytes = Math.abs(length - fileSizeInBytes);
+    const percentOff = differenceInBytes * 100 / length;
+    itemComment = `* size comparison * ${ destinationFilepath }\r\n` +
+      `expected: ${ length } / ` +
+      `found: ${ fileSizeInBytes } / ` +
+      `divergence: ${ differenceInBytes } / ` +
+      `percent: ${ percentOff }\r\n`;
+    // NOTE: turns out people can change the size of a file after the
+    // enclosure has been created. How can we ever handle this? Let's
+    // just assume it can be within 25% (?) of the expected size..
+    fileExistsCorrectly = percentOff < 25;
+  }
+  return {
+    fileExistsAtAll,
+    fileExistsCorrectly,
+    rssSizeProvided,
+    itemComment,
+  };
+};
+
 const runNextItemFactory = opts => {
   const {
     items,
@@ -27,7 +73,7 @@ const runNextItemFactory = opts => {
   if (!downloadRoot) {
     throw new Error('Configuration error - no download root found!');
   }
-  const dirAddon = title.replace(/[<>:'"/\\|?*]/g, ' ').replace(/\s+/g, '-');
+  const dirAddon = filterUnsafeFilenameChars(title);
   const dirName = path.join(downloadRoot, dirAddon);
   ensureDirExists(dirName);
 
@@ -86,7 +132,7 @@ const runNextItemFactory = opts => {
       return runNextItem();
     }
     itemCount++;
-    itemComments.push(`Item ${ itemCount }: (${ pubDate } / ${ guid })`);
+    itemComments.push(`\r\nItem ${ itemCount }: (${ pubDate } / ${ guid })`);
     itemComments.push(`${ title }\n${ url }`);
     const enclosureFilename = path.basename(url);
     const fileTypeMatches = fileTypesRegex.exec(enclosureFilename);
@@ -96,38 +142,68 @@ const runNextItemFactory = opts => {
     const fileTypeString = fileTypeMatches
       ? fileTypeMatches[1]
       : DEFAULT_FILE_TYPE_ENDING;
-    const safeEnclosureFilename = enclosureFilename.replace(fileTypeString, '').replace(/[=&<>:'"/\\|?*]/g, ' ').replace(/\s+/g, '-').substr(0, 245) + fileTypeString;
+    const safeEnclosureFilename = keepFileExtensionAndFilter(enclosureFilename, fileTypeString);
     const destinationFilename = path.join(dirName, safeEnclosureFilename);
-    const metadataFile = path.join(metadataDirname, `${ safeEnclosureFilename }.json`);
-    let fileExistsCorrectly = false;
-    const fileExistsAtAll = fs.existsSync(destinationFilename);
-    const rssSizeProvided = length > 0;
-    if (fileExistsAtAll && rssSizeProvided) {
-      const stats = fs.statSync(destinationFilename) || { size: 0 };
-      const fileSizeInBytes = stats.size;
-      const differenceInBytes = Math.abs(length - fileSizeInBytes);
-      const percentOff = differenceInBytes * 100 / length;
-      itemComments.push(`* size comparison * expected: ${ length } / ` +
-        `found: ${ fileSizeInBytes } / ` +
-        `divergence: ${ differenceInBytes } / ` +
-        `percent: ${ percentOff }`);
-      // NOTE: turns out people can change the size of a file after the
-      // enclosure has been created. How can we ever handle this? Let's
-      // just assume it can be within 75% (?) of the expected size..
-      fileExistsCorrectly = percentOff < 75;
+    const metadataFilename = path.join(metadataDirname, `${ safeEnclosureFilename }.json`);
+
+    const {
+      fileExistsAtAll: basicFileExists,
+      fileExistsCorrectly: basicFileIsCorrect,
+      rssSizeProvided: basicSizeProvided,
+      itemComment: basicItemComment,
+    } = checkIfEnclosureExists({
+      destinationFilepath: destinationFilename,
+      length,
+    });
+    if (basicItemComment) {
+      itemComments.push(basicItemComment);
     }
-    if ((fileExistsAtAll && !rssSizeProvided) || fileExistsCorrectly) {
+    if ((basicFileExists && !basicSizeProvided) || basicFileIsCorrect) {
       itemComments.push(` > File exists, skipping download`);
       if (!showOnlyDownloads) {
         showComments();
       }
       return runNextItem();
     }
-    itemComments.push(` > Downloading file now ...`);
+
+    let actualDestinationFilename = destinationFilename;
+    let actualMetadataFilename = metadataFilename;
+    // NOTE: here we'll take any file that already exists and add `guid-` as a
+    // prefix. Turns out some RSS feeds don't give their unique-guid-items a
+    // similarly unique filename. The only solution outside of comparing the
+    // files is this, to get a free additional try to download it correctly.
+    if (!basicFileIsCorrect) {
+      const guidIncludedSafeEnclosureFilename = keepFileExtensionAndFilter(`${ guid }-${ enclosureFilename }`, fileTypeString);
+      const guidIncludedDestinationFilename = path.join(dirName, guidIncludedSafeEnclosureFilename);
+
+      const {
+        fileExistsAtAll: guidAddedFileExists,
+        fileExistsCorrectly: guidAddedFileIsCorrect,
+        rssSizeProvided: guidAddedSizeProvided,
+        itemComment: guidAddedItemComment,
+      } = checkIfEnclosureExists({
+        destinationFilepath: guidIncludedDestinationFilename,
+        length,
+      });
+      if (guidAddedItemComment) {
+        itemComments.push(guidAddedItemComment);
+      }
+      if ((guidAddedFileExists && !guidAddedSizeProvided) || guidAddedFileIsCorrect) {
+        itemComments.push(` > File exists, skipping download`);
+        if (!showOnlyDownloads) {
+          showComments();
+        }
+        return runNextItem();
+      }
+      actualDestinationFilename = guidIncludedDestinationFilename;
+      actualMetadataFile = path.join(metadataDirname, `${ guidIncludedSafeEnclosureFilename }.json`);
+    }
+
+    itemComments.push(` > Downloading \'${ actualDestinationFilename }\'...`);
     downloadedCount++;
     showComments();
-    downloadFile(url, destinationFilename)
-      .then(() => writeItemMetadata(metadataFile, item))
+    downloadFile(url, actualDestinationFilename)
+      .then(() => writeItemMetadata(actualMetadataFilename, item))
       .then(runNextItem)
       .catch(err => {
         console.log(err);
