@@ -10,9 +10,13 @@ const {
   runNextFeedFactory,
 } = require('./helpers/rss');
 
+console.log(`Starting ${ new Date() }`);
+
 const feeds = getFeeds();
 const runNextFeed = runNextFeedFactory(feeds, {
   topDefaultPolicy: getFeedDefaultPolicy(),
 });
 
 runNextFeed();
+
+console.log(`Completed ${ new Date() }`);
