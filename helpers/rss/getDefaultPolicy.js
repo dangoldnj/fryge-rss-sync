@@ -4,7 +4,7 @@ const path = require('path');
 const defaultPolicy = {
   downloadRoot: path.join(os.homedir(), 'podcasts'),
   fetchAllItems: false,
-  oldestDownload: new Date(2018, 4, 1),
+  oldestDownload: new Date(2016, 10, 1),
 };
 
 const getDefaultPolicy = () => {

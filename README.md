@@ -44,14 +44,16 @@
   const defaultPolicy = {
     downloadRoot: path.join(os.homedir(), 'podcasts'),
     fetchAllItems: false,
-    oldestDownload: new Date(2018, 4, 1),
+    oldestDownload: new Date(2016, 10, 1),
   };
 
   ```
 
   You may modify the default policy as needed in `helpers/rss/getDefaultPolicy.js`.
 
-  Also, you may include a `policy` key in your `feeds.json` that will use any provided object fields to override the defaultPolicy on a per-feed basis.
+  You may also provide overrides within `feeds.json`
+
+  Also, you may include two different `policy` keys in your `feeds.json` that will use any provided object fields to override the defaultPolicy on a per-feed basis.
 
 ## Roadmap
 
