@@ -69,11 +69,16 @@ const runNextItemFactory = opts => {
       pubDate,
       guid,
       title,
-      enclosure: {
-        length,
-        url = '',
-      } = {},
+      enclosures = [],
     } = item;
+    if (!enclosures.length) {
+      return runNextItem();
+    }
+    const {
+      length,
+      url = '',
+    } = enclosures[0];
+
     const itemPubDate = new Date(pubDate);
     const itemPubDateOK = fetchAllItems || itemPubDate > oldestDownload;
     const ignoredByGuid = ignoreByGuid && ignoreByGuid.includes(guid);

@@ -13,9 +13,9 @@
     "test": "xo"
   },
   "dependencies": {
+    "davefeedread": "^0.5.9",
     "node-fs": "^0.1.7",
-    "request": "^2.87.0",
-    "rss-parser": "^3.4.2"
+    "request": "^2.87.0"
   },
   "devDependencies": {
     "xo": "^0.21.1"

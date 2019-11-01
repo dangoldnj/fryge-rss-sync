@@ -1,4 +1,5 @@
-const RssParser = require('rss-parser');
+const feedRead = require ('davefeedread');
+const timeOutSecs = 30;
 
 const { getDefaultPolicy } = require('./getDefaultPolicy');
 const { runNextItemFactory } = require('./runNextItemFactory');
@@ -8,7 +9,6 @@ const runNextFeedFactory = (feeds, opts) => {
     topDefaultPolicy = {},
   } = opts;
   const maxFeeds = feeds.length;
-  const parser = new RssParser();
   let currentFeed = -1;
 
   const runNextFeed = () => {
@@ -29,11 +29,16 @@ const runNextFeedFactory = (feeds, opts) => {
     );
 
     console.log(`\nLoading the feed '${ name }' at '${ rss }':`);
-    parser.parseURL(rss)
-      .then(parsedFeed => {
+    feedRead.parseUrl(rss, timeOutSecs, (err, parsedFeed) => {
+      if (err) {
+        console.log(`Error while processing feed '${ name }': ${ err }`);
+        runNextFeed();
+      } else {
         const {
+          head: {
+            title,
+          },
           items = [],
-          title,
         } = parsedFeed;
         console.log(`>> Found: ${ title }`);
         const opts = {
@@ -44,11 +49,8 @@ const runNextFeedFactory = (feeds, opts) => {
         };
         const runNextItem = runNextItemFactory(opts);
         runNextItem();
-      })
-      .catch(err => {
-        console.log(`Error while processing feed '${ name }': ${ err }`);
-        runNextFeed();
-      });
+      }
+    });
   };
   return runNextFeed;
 };
