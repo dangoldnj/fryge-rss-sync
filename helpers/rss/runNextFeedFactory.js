@@ -12,44 +12,49 @@ const runNextFeedFactory = (feeds, opts) => {
   let currentFeed = -1;
 
   const runNextFeed = () => {
-    currentFeed++;
-    if (currentFeed >= maxFeeds) {
-      return;
-    }
-    const {
-      name,
-      policy: feedItemPolicy = {},
-      rss,
-    } = feeds[currentFeed];
-
-    const policy = Object.assign({},
-      getDefaultPolicy(),
-      topDefaultPolicy,
-      feedItemPolicy
-    );
-
-    console.log(`\nLoading the feed '${ name }' at '${ rss }':`);
-    feedRead.parseUrl(rss, timeOutSecs, (err, parsedFeed) => {
-      if (err) {
-        console.log(`Error while processing feed '${ name }': ${ err }`);
-        runNextFeed();
-      } else {
-        const {
-          head: {
-            title,
-          },
-          items = [],
-        } = parsedFeed;
-        console.log(`>> Found: ${ title }`);
-        const opts = {
-          items,
-          policy,
-          runNextFeed,
-          title,
-        };
-        const runNextItem = runNextItemFactory(opts);
-        runNextItem();
+    return new Promise((resolve, reject) => {
+      currentFeed++;
+      if (currentFeed >= maxFeeds) {
+        resolve(true);
+        return;
       }
+      const {
+        name,
+        policy: feedItemPolicy = {},
+        rss,
+      } = feeds[currentFeed];
+
+      const policy = Object.assign({},
+        getDefaultPolicy(),
+        topDefaultPolicy,
+        feedItemPolicy
+      );
+
+      console.log(`\nLoading the feed '${ name }' at '${ rss }':`);
+      feedRead.parseUrl(rss, timeOutSecs, (err, parsedFeed) => {
+        if (err) {
+          console.log(`Error while processing feed '${ name }': ${ err }`);
+          return runNextFeed();
+        } else {
+          const {
+            head: {
+              title,
+            },
+            items = [],
+          } = parsedFeed;
+          console.log(`>> Found: ${ title }`);
+          const opts = {
+            items,
+            policy,
+            runNextFeed,
+            title,
+          };
+          const runNextItem = runNextItemFactory(opts);
+          const nextItem = runNextItem();
+          resolve(nextItem);
+          return nextItem;
+        }
+      });
     });
   };
   return runNextFeed;

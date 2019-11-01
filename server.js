@@ -10,13 +10,14 @@ const {
   runNextFeedFactory,
 } = require('./helpers/rss');
 
-console.log(`Starting ${ new Date() }`);
+console.log(`Started ${ new Date() }`);
 
 const feeds = getFeeds();
 const runNextFeed = runNextFeedFactory(feeds, {
   topDefaultPolicy: getFeedDefaultPolicy(),
 });
 
-runNextFeed();
-
-console.log(`Completed ${ new Date() }`);
+runNextFeed()
+  .then(() => {
+    console.log(`\r\nCompleted ${ new Date() }`);
+  });
