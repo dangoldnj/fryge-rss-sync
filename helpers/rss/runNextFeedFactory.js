@@ -34,7 +34,9 @@ const runNextFeedFactory = (feeds, opts) => {
       feedRead.parseUrl(rss, timeOutSecs, (err, parsedFeed) => {
         if (err) {
           console.log(`Error while processing feed '${ name }': ${ err }`);
-          return runNextFeed();
+          const nextFeed = runNextItem();
+          resolve(nextFeed)
+          return nextFeed;
         } else {
           const {
             head: {

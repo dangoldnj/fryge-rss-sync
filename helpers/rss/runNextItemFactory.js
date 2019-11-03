@@ -85,7 +85,7 @@ const runNextItemFactory = opts => {
   let itemCount = 0;
   let downloadedCount = 0;
 
-  const cleanupFunction = (opts = {}) => {
+  const feedCleanupFunction = (opts = {}) => {
     commentCompletion(opts);
     return runNextFeed();
   };
@@ -105,110 +105,120 @@ const runNextItemFactory = opts => {
   };
 
   const runNextItem = () => {
-    commentCompletion();
-    currentItem++;
-    if (currentItem >= maxItems) {
-      return cleanupFunction({ forceComments: true });
-    }
-    const item = items[currentItem];
-    const {
-      pubDate,
-      guid,
-      title,
-      enclosures = [],
-    } = item;
-    if (!enclosures.length) {
-      return runNextItem();
-    }
-    const {
-      length,
-      url = '',
-    } = enclosures[0];
-
-    const itemPubDate = new Date(pubDate);
-    const itemPubDateOK = fetchAllItems || itemPubDate > oldestDownload;
-    const ignoredByGuid = ignoreByGuid && ignoreByGuid.includes(guid);
-    if (!url || !itemPubDateOK || ignoredByGuid) {
-      return runNextItem();
-    }
-    itemCount++;
-    itemComments.push(`\r\nItem ${ itemCount }: (${ pubDate } / ${ guid })`);
-    itemComments.push(`${ title }\n${ url }`);
-    const enclosureFilename = path.basename(url);
-    const fileTypeMatches = fileTypesRegex.exec(enclosureFilename);
-    if (!fileTypeMatches) {
-      console.log('Warning - no file extension detected!', enclosureFilename, fileTypeMatches);
-    }
-    const fileTypeString = fileTypeMatches
-      ? fileTypeMatches[1]
-      : DEFAULT_FILE_TYPE_ENDING;
-    const safeEnclosureFilename = keepFileExtensionAndFilter(enclosureFilename, fileTypeString);
-    const destinationFilename = path.join(dirName, safeEnclosureFilename);
-    const metadataFilename = path.join(metadataDirname, `${ safeEnclosureFilename }.json`);
-
-    const {
-      fileExistsAtAll: basicFileExists,
-      fileExistsCorrectly: basicFileIsCorrect,
-      rssSizeProvided: basicSizeProvided,
-      itemComment: basicItemComment,
-    } = checkIfEnclosureExists({
-      destinationFilepath: destinationFilename,
-      length,
-    });
-    if (basicItemComment) {
-      itemComments.push(basicItemComment);
-    }
-    if ((basicFileExists && !basicSizeProvided) || basicFileIsCorrect) {
-      itemComments.push(` > File exists, skipping download`);
-      if (!showOnlyDownloads) {
-        showComments();
+    return new Promise((resolve, reject) => {
+      commentCompletion();
+      currentItem++;
+      if (currentItem >= maxItems) {
+        const nextFeed = feedCleanupFunction({ forceComments: true });
+        resolve(nextFeed);
+        return nextFeed;
       }
-      return runNextItem();
-    }
+      const itemCleanupFunction = () => {
+        const nextItem = runNextItem();
+        resolve(nextItem);
+        return nextItem;
+      };
+      const item = items[currentItem];
+      const {
+        pubDate,
+        guid,
+        title,
+        enclosures = [],
+      } = item;
+      if (!enclosures.length) {
+        return itemCleanupFunction();
+      }
+      const {
+        length,
+        url = '',
+      } = enclosures[0];
 
-    let actualDestinationFilename = destinationFilename;
-    let actualMetadataFilename = metadataFilename;
-    // NOTE: here we'll take any file that already exists and add `guid-` as a
-    // prefix. Turns out some RSS feeds don't give their unique-guid-items a
-    // similarly unique filename. The only solution outside of comparing the
-    // files is this, to get a free additional try to download it correctly.
-    if (!basicFileIsCorrect) {
-      const guidIncludedSafeEnclosureFilename = keepFileExtensionAndFilter(`${ guid }-${ enclosureFilename }`, fileTypeString);
-      const guidIncludedDestinationFilename = path.join(dirName, guidIncludedSafeEnclosureFilename);
+      const itemPubDate = new Date(pubDate);
+      const itemPubDateOK = fetchAllItems || itemPubDate > oldestDownload;
+      const ignoredByGuid = ignoreByGuid && ignoreByGuid.includes(guid);
+      if (!url || !itemPubDateOK || ignoredByGuid) {
+        return itemCleanupFunction();
+      }
+      itemCount++;
+      itemComments.push(`\r\nItem ${ itemCount }: (${ pubDate } / ${ guid })`);
+      itemComments.push(`${ title }\n${ url }`);
+      const enclosureFilename = path.basename(url);
+      const fileTypeMatches = fileTypesRegex.exec(enclosureFilename);
+      if (!fileTypeMatches) {
+        console.log('Warning - no file extension detected!', enclosureFilename, fileTypeMatches);
+      }
+      const fileTypeString = fileTypeMatches
+        ? fileTypeMatches[1]
+        : DEFAULT_FILE_TYPE_ENDING;
+      const safeEnclosureFilename = keepFileExtensionAndFilter(enclosureFilename, fileTypeString);
+      const destinationFilename = path.join(dirName, safeEnclosureFilename);
+      const metadataFilename = path.join(metadataDirname, `${ safeEnclosureFilename }.json`);
 
       const {
-        fileExistsAtAll: guidAddedFileExists,
-        fileExistsCorrectly: guidAddedFileIsCorrect,
-        rssSizeProvided: guidAddedSizeProvided,
-        itemComment: guidAddedItemComment,
+        fileExistsAtAll: basicFileExists,
+        fileExistsCorrectly: basicFileIsCorrect,
+        rssSizeProvided: basicSizeProvided,
+        itemComment: basicItemComment,
       } = checkIfEnclosureExists({
-        destinationFilepath: guidIncludedDestinationFilename,
+        destinationFilepath: destinationFilename,
         length,
       });
-      if (guidAddedItemComment) {
-        itemComments.push(guidAddedItemComment);
+      if (basicItemComment) {
+        itemComments.push(basicItemComment);
       }
-      if ((guidAddedFileExists && !guidAddedSizeProvided) || guidAddedFileIsCorrect) {
+      if ((basicFileExists && !basicSizeProvided) || basicFileIsCorrect) {
         itemComments.push(` > File exists, skipping download`);
         if (!showOnlyDownloads) {
           showComments();
         }
-        return runNextItem();
+        return itemCleanupFunction();
       }
-      actualDestinationFilename = guidIncludedDestinationFilename;
-      actualMetadataFile = path.join(metadataDirname, `${ guidIncludedSafeEnclosureFilename }.json`);
-    }
 
-    itemComments.push(` > Downloading \'${ actualDestinationFilename }\'...`);
-    downloadedCount++;
-    showComments();
-    downloadFile(url, actualDestinationFilename)
-      .then(() => writeItemMetadata(actualMetadataFilename, item))
-      .then(runNextItem)
-      .catch(err => {
-        console.log(err);
-        cleanupFunction();
-      });
+      let actualDestinationFilename = destinationFilename;
+      let actualMetadataFilename = metadataFilename;
+      // NOTE: here we'll take any file that already exists and add `guid-` as a
+      // prefix. Turns out some RSS feeds don't give their unique-guid-items a
+      // similarly unique filename. The only solution outside of comparing the
+      // files is this, to get a free additional try to download it correctly.
+      if (basicFileExists && !basicFileIsCorrect) {
+        const guidIncludedSafeEnclosureFilename = keepFileExtensionAndFilter(`${ guid }-${ enclosureFilename }`, fileTypeString);
+        const guidIncludedDestinationFilename = path.join(dirName, guidIncludedSafeEnclosureFilename);
+
+        const {
+          fileExistsAtAll: guidAddedFileExists,
+          fileExistsCorrectly: guidAddedFileIsCorrect,
+          rssSizeProvided: guidAddedSizeProvided,
+          itemComment: guidAddedItemComment,
+        } = checkIfEnclosureExists({
+          destinationFilepath: guidIncludedDestinationFilename,
+          length,
+        });
+        if (guidAddedItemComment) {
+          itemComments.push(guidAddedItemComment);
+        }
+        if ((guidAddedFileExists && !guidAddedSizeProvided) || guidAddedFileIsCorrect) {
+          itemComments.push(` > File exists, skipping download`);
+          if (!showOnlyDownloads) {
+            showComments();
+          }
+          return itemCleanupFunction();
+        }
+        actualDestinationFilename = guidIncludedDestinationFilename;
+        actualMetadataFilename = path.join(metadataDirname, `${ guidIncludedSafeEnclosureFilename }.json`);
+      }
+
+      itemComments.push(` > Downloading \'${ actualDestinationFilename }\'...`);
+      downloadedCount++;
+      showComments();
+      downloadFile(url, actualDestinationFilename)
+        .then(() => writeItemMetadata(actualMetadataFilename, item))
+        .then(itemCleanupFunction)
+        .catch(err => {
+          console.log(err);
+          const nextFeed = feedCleanupFunction();
+          resolve(nextFeed);
+        });
+    });
   };
   return runNextItem;
 };
