@@ -37,6 +37,7 @@ const checkIfEnclosureExists = (opts) => {
   if (fileExistsAtAll && rssSizeProvided) {
     const stats = fs.statSync(destinationFilepath) || { size: 0 };
     const fileSizeInBytes = stats.size;
+    const localIsLarger = (length - fileSizeInBytes) < 0;
     const differenceInBytes = Math.abs(length - fileSizeInBytes);
     const percentOff = differenceInBytes * 100 / length;
     itemComment = `* size comparison * ${ destinationFilepath }\r\n` +
@@ -47,7 +48,7 @@ const checkIfEnclosureExists = (opts) => {
     // NOTE: turns out people can change the size of a file after the
     // enclosure has been created. How can we ever handle this? Let's
     // just assume it can be within 25% (?) of the expected size..
-    fileExistsCorrectly = percentOff < 25;
+    fileExistsCorrectly = localIsLarger || percentOff < 25;
   }
   return {
     fileExistsAtAll,
