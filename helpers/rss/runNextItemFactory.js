@@ -12,6 +12,9 @@ const fileTypesRegex = /([.](mp3|m4a|aac|mp4|m4p|m4r|3gp|ogg|oga|wma|raw|wav|fla
 const showOnlyDownloads = true;
 
 const filterUnsafeFilenameChars = input => {
+  if (!input) {
+    return '';
+  }
   const text = input
     .replace(/[=&<>:'"/\\|?*]/g, ' ')
     .replace(/\s+/g, '-')
@@ -85,6 +88,7 @@ const runNextItemFactory = opts => {
   let currentItem = -1;
   let itemCount = 0;
   let downloadedCount = 0;
+  let errorCount = 0;
 
   const feedCleanupFunction = (opts = {}) => {
     commentCompletion(opts);
@@ -96,6 +100,7 @@ const runNextItemFactory = opts => {
   const commentCompletion = ({ forceComments = false } = {}) => {
     if (forceComments) {
       console.log(`Total: ${ itemCount } ${ itemTerm(itemCount) } seen /` +
+        ` ${ errorCount } ${ itemTerm(errorCount) } with errors /` +
         ` ${ downloadedCount } ${ itemTerm(downloadedCount) } downloaded.`);
     }
     itemComments = [];
@@ -141,7 +146,7 @@ const runNextItemFactory = opts => {
         return itemCleanupFunction();
       }
       itemCount++;
-      itemComments.push(`\r\nItem ${ itemCount }: (${ pubDate } / ${ guid })`);
+      itemComments.push(`\r\nItem ${ itemCount }: (${ pubDate } / \`${ guid }\`)`);
       itemComments.push(`${ title }\n${ url }`);
       const enclosureFilename = path.basename(url);
       const fileTypeMatches = fileTypesRegex.exec(enclosureFilename);
@@ -216,8 +221,9 @@ const runNextItemFactory = opts => {
         .then(itemCleanupFunction)
         .catch(err => {
           console.log(err);
-          const nextFeed = feedCleanupFunction();
-          resolve(nextFeed);
+          downloadedCount--;
+          errorCount++;
+          return itemCleanupFunction();
         });
     });
   };
