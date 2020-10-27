@@ -1,13 +1,20 @@
 {
+  "defaultPolicy": {
+    "downloadRoot": "s:\\podcasts",
+    "fetchAllItems": true
+  },
   "feeds": [
     {
       "name": "KCRW: Today's Top Tune",
-      "rss": "http://www.kcrw.com/podcast/show/tu"
+      "rss": "https://www.kcrw.com/podcast/show/tu"
     },
     {
       "name": "99% Invisible",
       "policy": {
-        "fetchAllItems": false
+        "fetchAllItems": false,
+        "ignoreByGuid": [
+          "prx_96_ed0a03e3-766d-48d8-af03-2d167a3f39a4"
+        ]
       },
       "rss": "http://feeds.99percentinvisible.org/99percentinvisible"
     },
@@ -16,7 +23,7 @@
       "policy": {
         "fetchAllItems": false
       },
-      "rss": "http://rss.earwolf.com/comedy-bang-bang"
+      "rss": "https://rss.art19.com/comedy-bang-bang"
     }
   ]
 }
