@@ -8,17 +8,18 @@ const {
 } = require('../local');
 
 const DEFAULT_FILE_TYPE_ENDING = '.mp3';
-const fileTypesRegex = /([.](mp3|m4a|aac|mp4|m4p|m4r|3gp|ogg|oga|wma|raw|wav|flac|m4v))/;
+const fileTypesRegex = /(\.(mp3|m4a|aac|mp4|m4p|m4r|3gp|ogg|oga|wma|raw|wav|flac|m4v))/;
 const showOnlyDownloads = true;
 
 const filterUnsafeFilenameChars = input => {
   if (!input) {
     return '';
   }
+
   const text = input
     .replace(/[=&<>:'"/\\|?*]/g, ' ')
     .replace(/\s+/g, '-')
-    .substr(0, 245);
+    .slice(0, 245);
   return text;
 };
 
@@ -26,13 +27,13 @@ const keepFileExtensionAndFilter = (input, fileType) => {
   const stripExtension = input.replace(fileType, '');
   const text = filterUnsafeFilenameChars(stripExtension) + fileType;
   return text;
-}
+};
 
-const getControlFileSavedSize = (path) => {
+const getControlFileSavedSize = path => {
   try {
-    const data = fs.readFileSync(path, 'utf8')
+    const data = fs.readFileSync(path, 'utf8');
     return data;
-  } catch (err) {
+  } catch {
     return null;
   }
 };
@@ -40,16 +41,16 @@ const getControlFileSavedSize = (path) => {
 const setControlFileSavedSize = (path, data) => {
   try {
     fs.writeFileSync(path, data, 'utf8');
-  } catch (err) {
-    console.log(`Error writing to control file: ${ path }, ${ data }, ${ err }`);
+  } catch (error) {
+    console.log(`Error writing to control file: ${ path }, ${ data }, ${ error }`);
   }
 };
 
-const checkIfEnclosureExists = (opts) => {
+const checkIfEnclosureExists = options => {
   const {
     destinationFilepath,
     length = 0,
-  } = opts;
+  } = options;
   let fileExistsCorrectly = false;
   let itemComment;
   let foundSizeInBytes = 0;
@@ -72,6 +73,7 @@ const checkIfEnclosureExists = (opts) => {
     fileExistsCorrectly = localIsLarger || percentOff < 25;
     foundSizeInBytes = fileSizeInBytes;
   }
+
   return {
     fileExistsAtAll,
     fileExistsCorrectly,
@@ -81,7 +83,7 @@ const checkIfEnclosureExists = (opts) => {
   };
 };
 
-const runNextItemFactory = opts => {
+const runNextItemFactory = options => {
   const {
     items,
     policy: {
@@ -92,11 +94,12 @@ const runNextItemFactory = opts => {
     } = {},
     runNextFeed,
     title,
-  } = opts;
+  } = options;
 
   if (!downloadRoot) {
     throw new Error('Configuration error - no download root found!');
   }
+
   const dirAddon = filterUnsafeFilenameChars(title);
   const dirName = path.join(downloadRoot, dirAddon);
   ensureDirExists(dirName);
@@ -110,40 +113,43 @@ const runNextItemFactory = opts => {
   let downloadedCount = 0;
   let errorCount = 0;
 
-  const feedCleanupFunction = (opts = {}) => {
-    commentCompletion(opts);
+  const feedCleanupFunction = (cleanupOptions = {}) => {
+    commentCompletion(cleanupOptions);
     return runNextFeed();
   };
 
   let itemComments = [];
-  const itemTerm = count => `item${ count !== 1 ? 's': ''}`;
+  const itemTerm = count => `item${ count === 1 ? '' : 's' }`;
   const commentCompletion = ({ forceComments = false } = {}) => {
     if (forceComments) {
       console.log(`Total: ${ itemCount } ${ itemTerm(itemCount) } seen /` +
         ` ${ errorCount } ${ itemTerm(errorCount) } with errors /` +
         ` ${ downloadedCount } ${ itemTerm(downloadedCount) } downloaded.`);
     }
+
     itemComments = [];
   };
+
   const showComments = () => {
     itemComments.forEach(item => console.log(item));
     commentCompletion();
   };
 
   const runNextItem = () => {
-    return new Promise((resolve, reject) => {
+    return new Promise(resolve => {
       commentCompletion();
       currentItem++;
       if (currentItem >= maxItems) {
         const nextFeed = feedCleanupFunction({ forceComments: true });
         resolve(nextFeed);
-        return nextFeed;
+        return;
       }
+
       const itemCleanupFunction = () => {
         const nextItem = runNextItem();
         resolve(nextItem);
-        return nextItem;
       };
+
       const item = items[currentItem];
       const {
         pubDate,
@@ -151,9 +157,11 @@ const runNextItemFactory = opts => {
         title,
         enclosures = [],
       } = item;
-      if (!enclosures.length) {
-        return itemCleanupFunction();
+      if (Number(enclosures.length) < 1) {
+        itemCleanupFunction();
+        return;
       }
+
       const {
         length,
         url = '',
@@ -163,8 +171,10 @@ const runNextItemFactory = opts => {
       const itemPubDateOK = fetchAllItems || itemPubDate > oldestDownload;
       const ignoredByGuid = ignoreByGuid && ignoreByGuid.includes(guid);
       if (!url || !itemPubDateOK || ignoredByGuid) {
-        return itemCleanupFunction();
+        itemCleanupFunction();
+        return;
       }
+
       itemCount++;
       itemComments.push(`\r\nItem ${ itemCount }/${ maxItems }: (${ pubDate } / \`${ guid }\`)`);
       itemComments.push(`${ title }\n${ url }`);
@@ -173,6 +183,7 @@ const runNextItemFactory = opts => {
       if (!fileTypeMatches) {
         console.log('Warning - no file extension detected!', enclosureFilename, fileTypeMatches);
       }
+
       const fileTypeString = fileTypeMatches
         ? fileTypeMatches[1]
         : DEFAULT_FILE_TYPE_ENDING;
@@ -197,13 +208,17 @@ const runNextItemFactory = opts => {
       if (guidAddedItemComment) {
         itemComments.push(guidAddedItemComment);
       }
+
       if ((guidAddedFileExists && !guidAddedSizeProvided) || guidAddedFileIsCorrect) {
-        itemComments.push(` > File exists, skipping download`);
+        itemComments.push(' > File exists, skipping download');
         if (!showOnlyDownloads) {
           showComments();
         }
-        return itemCleanupFunction();
+
+        itemCleanupFunction();
+        return;
       }
+
       const actualDestinationFilename = guidIncludedDestinationFilename;
       const actualMetadataFilename = path.join(metadataDirname, `${ guidIncludedSafeEnclosureFilename }.json`);
 
@@ -214,12 +229,13 @@ const runNextItemFactory = opts => {
       if (guidAddedFileExists) {
         const savedSize = getControlFileSavedSize(controlFileFilename);
 
-        if (foundSizeInBytes && (savedSize == foundSizeInBytes)) {
-          return itemCleanupFunction();
+        if (foundSizeInBytes && (Number(savedSize) === Number(foundSizeInBytes))) {
+          itemCleanupFunction();
+          return;
         }
       }
 
-      itemComments.push(` > Downloading \'${ actualDestinationFilename }\'...`);
+      itemComments.push(` > Downloading '${ actualDestinationFilename }'...`);
       downloadedCount++;
       showComments();
       downloadFile(url, actualDestinationFilename)
@@ -237,14 +253,15 @@ const runNextItemFactory = opts => {
           }
         })
         .then(itemCleanupFunction)
-        .catch(err => {
-          console.log(err);
+        .catch(error => {
+          console.log(error);
           downloadedCount--;
           errorCount++;
           return itemCleanupFunction();
         });
     });
   };
+
   return runNextItem;
 };
 

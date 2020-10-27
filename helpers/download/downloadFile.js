@@ -1,20 +1,22 @@
+// eslint-disable-next-line import/no-unassigned-import
 require('isomorphic-fetch');
 const fs = require('fs');
 
 const downloadFile = async (url, localFilename) => {
-  const opts = {
-    cache: "no-store",
+  const options = {
+    cache: 'no-store',
     keepalive: false,
-    redirect: "follow",
-    referrer: "",
+    redirect: 'follow',
+    referrer: '',
   };
-  const res = await fetch(url, opts);
+  // eslint-disable-next-line no-undef
+  const result = await fetch(url, options);
   return new Promise((resolve, reject) => {
     const {
       body,
       ok,
       status,
-    } = res;
+    } = result;
 
     if (!ok) {
       const err = `Status ${ status } encountered.`;
@@ -23,7 +25,7 @@ const downloadFile = async (url, localFilename) => {
 
     const file = fs.createWriteStream(localFilename);
     body.pipe(file);
-    body.on('error', (err) => {
+    body.on('error', err => {
       reject(`Error! Cannot download enclosure '${ url }': ${ err }`);
     });
     file.on('finish', () => {

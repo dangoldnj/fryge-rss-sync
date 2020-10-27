@@ -1,4 +1,5 @@
 const { existsSync } = require('fs');
+// eslint-disable-next-line unicorn/import-style
 const { resolve } = require('path');
 
 const feedsPath = '../../feeds.json';
@@ -25,7 +26,7 @@ const {
 
 const getFeedDefaultPolicy = () => {
   return defaultPolicy;
-}
+};
 
 const getFeeds = () => {
   return feeds;

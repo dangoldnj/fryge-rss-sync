@@ -8,7 +8,7 @@ const {
 
 (async () => {
   process.on('uncaughtException', err =>
-    console.log('Caught exception: ', err));
+    console.log('Caught exception:', err));
 
   const feeds = getFeeds();
 

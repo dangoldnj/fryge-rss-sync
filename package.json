@@ -18,7 +18,7 @@
     "node-fs": "^0.1.7"
   },
   "devDependencies": {
-    "xo": "^0.21.1"
+    "xo": "0.34.1"
   },
   "xo": {
     "rules": {
@@ -30,12 +30,22 @@
         "error",
         "always"
       ],
+      "operator-linebreak": [
+        "error",
+        "after",
+        { "overrides": { "?": "before", ":": "before" } }
+      ],
       "prefer-promise-reject-errors": 0,
       "template-curly-spacing": [
         "error",
         "always"
       ],
-      "unicorn/filename-case": "camelCase"
+      "unicorn/filename-case": [
+        "error",
+        {
+          "case": "camelCase"
+        }
+      ]
     },
     "space": true
   }
