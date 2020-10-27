@@ -28,6 +28,23 @@ const keepFileExtensionAndFilter = (input, fileType) => {
   return text;
 }
 
+const getControlFileSavedSize = (path) => {
+  try {
+    const data = fs.readFileSync(path, 'utf8')
+    return data;
+  } catch (err) {
+    return null;
+  }
+};
+
+const setControlFileSavedSize = (path, data) => {
+  try {
+    fs.writeFileSync(path, data, 'utf8');
+  } catch (err) {
+    console.log(`Error writing to control file: ${ path }, ${ data }, ${ err }`);
+  }
+};
+
 const checkIfEnclosureExists = (opts) => {
   const {
     destinationFilepath,
@@ -35,6 +52,7 @@ const checkIfEnclosureExists = (opts) => {
   } = opts;
   let fileExistsCorrectly = false;
   let itemComment;
+  let foundSizeInBytes = 0;
   const fileExistsAtAll = fs.existsSync(destinationFilepath);
   const rssSizeProvided = length > 0;
   if (fileExistsAtAll && rssSizeProvided) {
@@ -52,10 +70,12 @@ const checkIfEnclosureExists = (opts) => {
     // enclosure has been created. How can we ever handle this? Let's
     // just assume it can be within 25% (?) of the expected size..
     fileExistsCorrectly = localIsLarger || percentOff < 25;
+    foundSizeInBytes = fileSizeInBytes;
   }
   return {
     fileExistsAtAll,
     fileExistsCorrectly,
+    foundSizeInBytes,
     rssSizeProvided,
     itemComment,
   };
@@ -146,7 +166,7 @@ const runNextItemFactory = opts => {
         return itemCleanupFunction();
       }
       itemCount++;
-      itemComments.push(`\r\nItem ${ itemCount }: (${ pubDate } / \`${ guid }\`)`);
+      itemComments.push(`\r\nItem ${ itemCount }/${ maxItems }: (${ pubDate } / \`${ guid }\`)`);
       itemComments.push(`${ title }\n${ url }`);
       const enclosureFilename = path.basename(url);
       const fileTypeMatches = fileTypesRegex.exec(enclosureFilename);
@@ -156,61 +176,47 @@ const runNextItemFactory = opts => {
       const fileTypeString = fileTypeMatches
         ? fileTypeMatches[1]
         : DEFAULT_FILE_TYPE_ENDING;
-      const safeEnclosureFilename = keepFileExtensionAndFilter(enclosureFilename, fileTypeString);
-      const destinationFilename = path.join(dirName, safeEnclosureFilename);
-      const metadataFilename = path.join(metadataDirname, `${ safeEnclosureFilename }.json`);
+
+      // NOTE: here we'll take any file that already exists and add `guid-` as a
+      // prefix. Turns out some RSS feeds don't give their unique-guid-items a
+      // similarly unique filename. The only solution outside of comparing the
+      // files is this, to get a free additional try to download it correctly.
+      const guidIncludedSafeEnclosureFilename = keepFileExtensionAndFilter(`${ guid }-${ enclosureFilename }`, fileTypeString);
+      const guidIncludedDestinationFilename = path.join(dirName, guidIncludedSafeEnclosureFilename);
 
       const {
-        fileExistsAtAll: basicFileExists,
-        fileExistsCorrectly: basicFileIsCorrect,
-        rssSizeProvided: basicSizeProvided,
-        itemComment: basicItemComment,
+        fileExistsAtAll: guidAddedFileExists,
+        fileExistsCorrectly: guidAddedFileIsCorrect,
+        foundSizeInBytes,
+        rssSizeProvided: guidAddedSizeProvided,
+        itemComment: guidAddedItemComment,
       } = checkIfEnclosureExists({
-        destinationFilepath: destinationFilename,
+        destinationFilepath: guidIncludedDestinationFilename,
         length,
       });
-      if (basicItemComment) {
-        itemComments.push(basicItemComment);
+      if (guidAddedItemComment) {
+        itemComments.push(guidAddedItemComment);
       }
-      if ((basicFileExists && !basicSizeProvided) || basicFileIsCorrect) {
+      if ((guidAddedFileExists && !guidAddedSizeProvided) || guidAddedFileIsCorrect) {
         itemComments.push(` > File exists, skipping download`);
         if (!showOnlyDownloads) {
           showComments();
         }
         return itemCleanupFunction();
       }
+      const actualDestinationFilename = guidIncludedDestinationFilename;
+      const actualMetadataFilename = path.join(metadataDirname, `${ guidIncludedSafeEnclosureFilename }.json`);
 
-      let actualDestinationFilename = destinationFilename;
-      let actualMetadataFilename = metadataFilename;
-      // NOTE: here we'll take any file that already exists and add `guid-` as a
-      // prefix. Turns out some RSS feeds don't give their unique-guid-items a
-      // similarly unique filename. The only solution outside of comparing the
-      // files is this, to get a free additional try to download it correctly.
-      if (basicFileExists && !basicFileIsCorrect) {
-        const guidIncludedSafeEnclosureFilename = keepFileExtensionAndFilter(`${ guid }-${ enclosureFilename }`, fileTypeString);
-        const guidIncludedDestinationFilename = path.join(dirName, guidIncludedSafeEnclosureFilename);
+      // NOTE: if the file already exists, we check the control file for any old run data;
+      // if the old run has identical old / new filesizes, we assume the download has been
+      // successful and we'll ignore this from now on - otherwise, we'll download it again
+      const controlFileFilename = path.join(metadataDirname, `${ guidIncludedSafeEnclosureFilename }.txt`);
+      if (guidAddedFileExists) {
+        const savedSize = getControlFileSavedSize(controlFileFilename);
 
-        const {
-          fileExistsAtAll: guidAddedFileExists,
-          fileExistsCorrectly: guidAddedFileIsCorrect,
-          rssSizeProvided: guidAddedSizeProvided,
-          itemComment: guidAddedItemComment,
-        } = checkIfEnclosureExists({
-          destinationFilepath: guidIncludedDestinationFilename,
-          length,
-        });
-        if (guidAddedItemComment) {
-          itemComments.push(guidAddedItemComment);
-        }
-        if ((guidAddedFileExists && !guidAddedSizeProvided) || guidAddedFileIsCorrect) {
-          itemComments.push(` > File exists, skipping download`);
-          if (!showOnlyDownloads) {
-            showComments();
-          }
+        if (foundSizeInBytes && (savedSize == foundSizeInBytes)) {
           return itemCleanupFunction();
         }
-        actualDestinationFilename = guidIncludedDestinationFilename;
-        actualMetadataFilename = path.join(metadataDirname, `${ guidIncludedSafeEnclosureFilename }.json`);
       }
 
       itemComments.push(` > Downloading \'${ actualDestinationFilename }\'...`);
@@ -218,6 +224,18 @@ const runNextItemFactory = opts => {
       showComments();
       downloadFile(url, actualDestinationFilename)
         .then(() => writeItemMetadata(actualMetadataFilename, item))
+        .then(() => {
+          if (guidAddedFileExists) {
+            const {
+              foundSizeInBytes: newSizeInBytes,
+            } = checkIfEnclosureExists({
+              destinationFilepath: guidIncludedDestinationFilename,
+              length,
+            });
+            // NOTE: we save this filesize here for any future checks
+            setControlFileSavedSize(controlFileFilename, newSizeInBytes);
+          }
+        })
         .then(itemCleanupFunction)
         .catch(err => {
           console.log(err);
