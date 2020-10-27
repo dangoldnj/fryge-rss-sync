@@ -31,11 +31,11 @@
 
 ## Requirements
 
-  You must have a working `node` environment with `npm` installed.
+  You must have a working `node` environment with `yarn` installed.
 
 ## Installation
 
-  Clone the repo, run `npm install`, modify `feeds.json` to your liking, and run `npm run start` to scan all the feeds and download new files.
+  Clone the repo, run `yarn install`, modify `feeds.json` to your liking, and run `yarn start` to scan all the feeds and download new files.
 
 ## Configuration
 
