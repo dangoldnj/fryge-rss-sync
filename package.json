@@ -14,8 +14,8 @@
   },
   "dependencies": {
     "davefeedread": "^0.5.14",
-    "node-fs": "^0.1.7",
-    "request": "^2.88.2"
+    "isomorphic-fetch": "^3.0.0",
+    "node-fs": "^0.1.7"
   },
   "devDependencies": {
     "xo": "^0.21.1"
