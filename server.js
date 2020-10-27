@@ -1,8 +1,4 @@
-const process = require('process');
-
-process.on('uncaughtException', err => {
-  console.log('Caught exception: ', err);
-});
+console.log(`Started ${ new Date() }`);
 
 const {
   getFeedDefaultPolicy,
@@ -10,14 +6,17 @@ const {
   runNextFeedFactory,
 } = require('./helpers/rss');
 
-console.log(`Started ${ new Date() }`);
+(async () => {
+  process.on('uncaughtException', err =>
+    console.log('Caught exception: ', err));
 
-const feeds = getFeeds();
-const runNextFeed = runNextFeedFactory(feeds, {
-  topDefaultPolicy: getFeedDefaultPolicy(),
-});
+  const feeds = getFeeds();
 
-runNextFeed()
-  .then(() => {
-    console.log(`\r\nCompleted ${ new Date() }`);
+  const runNextFeed = runNextFeedFactory(feeds, {
+    topDefaultPolicy: getFeedDefaultPolicy(),
   });
+
+  await runNextFeed();
+
+  console.log(`\r\nCompleted ${ new Date() }`);
+})();
