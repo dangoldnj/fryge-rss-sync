@@ -249,7 +249,7 @@ const runNextItemFactory = options => {
               length,
             });
             // NOTE: we save this filesize here for any future checks
-            setControlFileSavedSize(controlFileFilename, newSizeInBytes);
+            setControlFileSavedSize(controlFileFilename, newSizeInBytes.toString());
           }
         })
         .then(itemCleanupFunction)
