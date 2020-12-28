@@ -1,8 +1,15 @@
 const feedRead = require('davefeedread');
-const timeOutSecs = 30;
+const path = require('path');
 
 const { getDefaultPolicy } = require('./getDefaultPolicy');
+const {
+  ensureDirExists,
+  filterUnsafeFilenameChars,
+  writeItemMetadata,
+} = require('../local');
 const { runNextItemFactory } = require('./runNextItemFactory');
+
+const TIME_OUT_SECS = 30;
 
 const runNextFeedFactory = (feeds, options) => {
   const {
@@ -30,9 +37,10 @@ const runNextFeedFactory = (feeds, options) => {
         topDefaultPolicy,
         feedItemPolicy,
       );
+      const { downloadRoot } = policy;
 
       console.log(`\nLoading the feed '${ name }' at '${ rss }':`);
-      feedRead.parseUrl(rss, timeOutSecs, (err, parsedFeed) => {
+      feedRead.parseUrl(rss, TIME_OUT_SECS, (err, parsedFeed) => {
         if (err) {
           console.log(`!! Error while processing feed '${ name }': ${ err }`);
           const nextOptions = {
@@ -47,6 +55,9 @@ const runNextFeedFactory = (feeds, options) => {
           return nextFeed;
         }
 
+        const metadataDirname = path.join(downloadRoot, 'metadata');
+        ensureDirExists(metadataDirname);
+
         const {
           head: {
             title,
@@ -54,16 +65,21 @@ const runNextFeedFactory = (feeds, options) => {
           items = [],
         } = parsedFeed;
         console.log(`>> Found: ${ title }`);
-        const nextOptions = {
-          items,
-          policy,
-          runNextFeed,
-          title,
-        };
-        const runNextItem = runNextItemFactory(nextOptions);
-        const nextItem = runNextItem();
-        resolve(nextItem);
-        return nextItem;
+        const safeTitle = filterUnsafeFilenameChars(title);
+        const actualMetadataFilename = path.join(metadataDirname, `${ safeTitle }.json`);
+
+        writeItemMetadata(actualMetadataFilename, parsedFeed.head)
+          .then(() => {
+            const nextOptions = {
+              items,
+              policy,
+              runNextFeed,
+              title,
+            };
+            const runNextItem = runNextItemFactory(nextOptions);
+            const nextItem = runNextItem();
+            resolve(nextItem);
+          })
       });
     });
   };
