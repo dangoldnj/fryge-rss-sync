@@ -5,6 +5,7 @@ const { getDefaultPolicy } = require('./getDefaultPolicy');
 const {
   ensureDirExists,
   filterUnsafeFilenameChars,
+  readLocalData,
   writeItemMetadata,
 } = require('../local');
 const { runNextItemFactory } = require('./runNextItemFactory');
@@ -68,18 +69,26 @@ const runNextFeedFactory = (feeds, options) => {
         const safeTitle = filterUnsafeFilenameChars(title);
         const actualMetadataFilename = path.join(metadataDirname, `${ safeTitle }.json`);
 
-        writeItemMetadata(actualMetadataFilename, parsedFeed.head)
-          .then(() => {
-            const nextOptions = {
-              items,
-              policy,
-              runNextFeed,
-              title,
-            };
-            const runNextItem = runNextItemFactory(nextOptions);
-            const nextItem = runNextItem();
-            resolve(nextItem);
-          })
+        const nextStep = () => {
+          const nextOptions = {
+            items,
+            policy,
+            runNextFeed,
+            title,
+          };
+          const runNextItem = runNextItemFactory(nextOptions);
+          const nextItem = runNextItem();
+          resolve(nextItem);
+        };
+
+        const savedData = readLocalData(actualMetadataFilename);
+        const shouldSaveMetadata = savedData !== JSON.stringify(parsedFeed.head);
+        if (shouldSaveMetadata) {
+          writeItemMetadata(actualMetadataFilename, parsedFeed.head)
+            .then(nextStep)
+        } else {
+          nextStep();
+        }
       });
     });
   };
