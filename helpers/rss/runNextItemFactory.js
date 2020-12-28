@@ -4,30 +4,14 @@ const path = require('path');
 const { downloadFile } = require('../download');
 const {
   ensureDirExists,
+  filterUnsafeFilenameChars,
+  keepFileExtensionAndFilter,
   writeItemMetadata,
 } = require('../local');
 
 const DEFAULT_FILE_TYPE_ENDING = '.mp3';
 const fileTypesRegex = /(\.(mp3|m4a|aac|mp4|m4p|m4r|3gp|ogg|oga|wma|raw|wav|flac|m4v))/;
 const showOnlyDownloads = true;
-
-const filterUnsafeFilenameChars = input => {
-  if (!input) {
-    return '';
-  }
-
-  const text = input
-    .replace(/[=&<>:'"/\\|?*]/g, ' ')
-    .replace(/\s+/g, '-')
-    .slice(0, 245);
-  return text;
-};
-
-const keepFileExtensionAndFilter = (input, fileType) => {
-  const stripExtension = input.replace(fileType, '');
-  const text = filterUnsafeFilenameChars(stripExtension) + fileType;
-  return text;
-};
 
 const getControlFileSavedSize = path => {
   try {
