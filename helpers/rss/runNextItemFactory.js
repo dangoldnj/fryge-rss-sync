@@ -6,29 +6,14 @@ const {
   ensureDirExists,
   filterUnsafeFilenameChars,
   keepFileExtensionAndFilter,
+  readLocalData,
   writeItemMetadata,
+  writeLocalData,
 } = require('../local');
 
 const DEFAULT_FILE_TYPE_ENDING = '.mp3';
 const fileTypesRegex = /(\.(mp3|m4a|aac|mp4|m4p|m4r|3gp|ogg|oga|wma|raw|wav|flac|m4v))/;
 const showOnlyDownloads = true;
-
-const getControlFileSavedSize = path => {
-  try {
-    const data = fs.readFileSync(path, 'utf8');
-    return data;
-  } catch {
-    return null;
-  }
-};
-
-const setControlFileSavedSize = (path, data) => {
-  try {
-    fs.writeFileSync(path, data, 'utf8');
-  } catch (error) {
-    console.log(`Error writing to control file: ${ path }, ${ data }, ${ error }`);
-  }
-};
 
 const checkIfEnclosureExists = options => {
   const {
@@ -211,7 +196,7 @@ const runNextItemFactory = options => {
       // successful and we'll ignore this from now on - otherwise, we'll download it again
       const controlFileFilename = path.join(metadataDirname, `${ guidIncludedSafeEnclosureFilename }.txt`);
       if (guidAddedFileExists) {
-        const savedSize = getControlFileSavedSize(controlFileFilename);
+        const savedSize = readLocalData(controlFileFilename);
 
         if (foundSizeInBytes && (Number(savedSize) === Number(foundSizeInBytes))) {
           itemCleanupFunction();
@@ -233,7 +218,7 @@ const runNextItemFactory = options => {
               length,
             });
             // NOTE: we save this filesize here for any future checks
-            setControlFileSavedSize(controlFileFilename, newSizeInBytes.toString());
+            writeLocalData(controlFileFilename, newSizeInBytes.toString());
           }
         })
         .then(itemCleanupFunction)
