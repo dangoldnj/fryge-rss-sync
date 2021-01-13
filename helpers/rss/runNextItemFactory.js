@@ -207,8 +207,8 @@ const runNextItemFactory = options => {
       itemComments.push(` > Downloading '${ actualDestinationFilename }'...`);
       downloadedCount++;
       showComments();
-      downloadFile(url, actualDestinationFilename)
-        .then(() => writeItemMetadata(actualMetadataFilename, item))
+      writeItemMetadata(actualMetadataFilename, item)
+        .then(() => downloadFile(url, actualDestinationFilename))
         .then(() => {
           if (guidAddedFileExists) {
             const {
