@@ -28,8 +28,13 @@ const downloadFile = async (url, localFilename) => {
     body.on('error', err => {
       reject(`Error! Cannot download enclosure '${ url }': ${ err }`);
     });
+    file.on('error', err => {
+      reject(`Error! Cannot write to file '${ localFilename }': ${ err }`);
+    });
     file.on('finish', () => {
-      resolve();
+      file.close(() => {
+        resolve();
+      });
     });
   });
 };
