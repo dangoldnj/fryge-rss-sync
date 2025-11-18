@@ -6,6 +6,7 @@ const {
     filterUnsafeFilenameChars,
 } = require('../local/filterUnsafeFilenameChars');
 const { getDefaultPolicy } = require('./getDefaultPolicy');
+const { getFeedSignature } = require('./getFeedSignature');
 const { reportError } = require('../local/reportError');
 const { readLocalData } = require('../local/readLocalData');
 const { runItemFactory } = require('./runItemFactory');
@@ -56,10 +57,12 @@ const runFeedFactory = (feeds, options) => {
                             console.log(`>> Found: ${title}`);
 
                             const safeTitle = filterUnsafeFilenameChars(title);
-                            const actualMetadataFilename = path.join(
+                            const basePath = path.join(
                                 metadataDirname,
-                                `${safeTitle}.json`,
+                                `${safeTitle}`,
                             );
+                            const actualMetadataFilename = `${basePath}.json`;
+                            const manifestFilename = `${basePath}.manifest.txt`;
 
                             const savedData = await readLocalData(
                                 actualMetadataFilename,
@@ -73,6 +76,39 @@ const runFeedFactory = (feeds, options) => {
                                 );
                             }
 
+                            let existingManifest = null;
+                            const savedManifest = await readLocalData(
+                                manifestFilename,
+                            );
+                            if (savedManifest) {
+                                try {
+                                    existingManifest = JSON.parse(
+                                        savedManifest,
+                                    );
+                                } catch {
+                                    existingManifest = null;
+                                }
+                            }
+
+                            const feedSignature = getFeedSignature(
+                                parsedFeed.head,
+                                items,
+                            );
+                            if (
+                                existingManifest &&
+                                existingManifest.signature === feedSignature
+                            ) {
+                                console.log(
+                                    `No changes detected for '${name}', skipping.`,
+                                );
+                                resolve({
+                                    success: true,
+                                    feed: name,
+                                    skipped: true,
+                                });
+                                return;
+                            }
+
                             const itemRunFunctions = await runItemFactory({
                                 items,
                                 policy,
@@ -84,9 +120,18 @@ const runFeedFactory = (feeds, options) => {
                                 itemIdx < itemRunFunctions.length;
                                 itemIdx++
                             ) {
-                                const runNext = await itemRunFunctions[itemIdx]();
+                                const runNext = await itemRunFunctions[
+                                    itemIdx
+                                ]();
                                 if (!runNext) break;
                             }
+
+                            await writeItemMetadata(manifestFilename, {
+                                signature: feedSignature,
+                                itemCount: items.length,
+                                lastPubDate: items[0]?.pubDate || null,
+                                updatedAt: new Date().toISOString(),
+                            });
 
                             resolve({ success: true, feed: name });
                         } catch (error) {
