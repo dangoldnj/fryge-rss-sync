@@ -1,5 +1,6 @@
 const { getFeedDefaultPolicy, getFeeds } = require("./helpers/rss/getFeeds");
 const { runFeedFactory } = require("./helpers/rss/runFeedFactory");
+const { formatError } = require("./helpers/local/formatError");
 const { fork } = require("child_process");
 const path = require("path");
 
@@ -10,26 +11,32 @@ process.on("uncaughtException", (err) => console.log("Caught exception:", err));
 const runChildProcess = (runFeedScript, feedIdx) =>
   new Promise((resolve, reject) => {
     const child = fork(runFeedScript, [feedIdx]);
+    let lastMessage = null;
 
     child.on("message", (msg) => {
-      console.log(`Child ${feedIdx} message:`, msg);
+      lastMessage = msg;
     });
 
     child.on("exit", (code, signal) => {
-      if (code) {
-        console.log(`Child ${feedIdx} exited with code ${code}`);
-        reject(new Error(`Child ${feedIdx} exited with code ${code}`));
-      } else if (signal) {
-        console.log(`Child ${feedIdx} was killed with signal ${signal}`);
-        reject(new Error(`Child ${feedIdx} was killed with signal ${signal}`));
-      } else {
-        // console.log(`Child ${feedIdx} exited successfully`);
+      if (!code && !signal) {
         resolve();
+        return;
       }
+
+      if (lastMessage && lastMessage.status === "error") {
+        reject(new Error(lastMessage.error));
+        return;
+      }
+
+      if (signal) {
+        reject(new Error(`Child ${feedIdx} was killed with signal ${signal}`));
+        return;
+      }
+
+      reject(new Error(`Child ${feedIdx} exited with code ${code}`));
     });
 
     child.on("error", (err) => {
-      console.log(`Child ${feedIdx} encountered an error:`, err);
       reject(err);
     });
   });
@@ -42,10 +49,11 @@ const runChildProcess = (runFeedScript, feedIdx) =>
 
   const runFeedScript = path.resolve(__dirname, "runFeed.js");
   for (let feedIdx = 0; feedIdx < feedRunFunctions.length; feedIdx++) {
+    const feedName = feeds[feedIdx]?.name || `index ${feedIdx}`;
     try {
       await runChildProcess(runFeedScript, feedIdx);
     } catch (error) {
-      console.log(`Error processing feed index ${feedIdx}:`, error);
+      console.log(`Feed '${feedName}' failed: ${formatError(error)}`);
     }
   }
 

@@ -1,5 +1,6 @@
 const { runFeedFactory } = require("./helpers/rss/runFeedFactory");
 const { getFeedDefaultPolicy, getFeeds } = require("./helpers/rss/getFeeds");
+const { formatError } = require("./helpers/local/formatError");
 
 const feedIdx = process.argv[2];
 const feeds = getFeeds();
@@ -29,9 +30,9 @@ const feedRunFunctions = runFeedFactory(feeds, {
     process.exit(0);
   } catch (err) {
     if (process.send) {
-      process.send({ status: "error", error: err?.message || err });
+      process.send({ status: "error", error: formatError(err) });
     } else {
-      console.log(err);
+      console.log(formatError(err));
     }
     process.exit(1);
   }

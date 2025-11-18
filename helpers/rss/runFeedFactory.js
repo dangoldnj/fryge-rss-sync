@@ -8,7 +8,7 @@ const {
 } = require("../local/filterUnsafeFilenameChars");
 const { getDefaultPolicy } = require("./getDefaultPolicy");
 const { getFeedSignature } = require("./getFeedSignature");
-const { reportError } = require("../local/reportError");
+const { formatError } = require("../local/formatError");
 const { readLocalData } = require("../local/readLocalData");
 const { runItemFactory } = require("./runItemFactory");
 const { writeItemMetadata } = require("../local/writeItemMetadata");
@@ -105,7 +105,7 @@ const runFeedFactory = (feeds, options) => {
           if (err) {
             reject(
               new Error(
-                `Error while processing feed '${name}': ${err.toString()}`,
+                `Error while processing feed '${name}': ${formatError(err)}`,
               ),
             );
             return;
@@ -220,12 +220,18 @@ const runFeedFactory = (feeds, options) => {
 
             resolve({ success: true, feed: name });
           } catch (error) {
-            reject(new Error(`Error running feed '${name}': ${error}`));
+            reject(
+              new Error(`Error running feed '${name}': ${formatError(error)}`),
+            );
           }
         });
       } catch (error) {
         reject(
-          new Error(`Error preparing feed '${name || "unknown"}': ${error}`),
+          new Error(
+            `Error preparing feed '${name || "unknown"}': ${formatError(
+              error,
+            )}`,
+          ),
         );
       }
     });
@@ -237,11 +243,7 @@ const runFeedFactory = (feeds, options) => {
       return result;
     } catch (error) {
       const name = currentFeed?.name || "unknown";
-      const errorMessage =
-        typeof error === "string" ? error : error?.message || error.toString();
-      reportError(
-        `Error encountered while running feed '${name}': ${errorMessage}`,
-      );
+      const errorMessage = formatError(error);
       return { success: false, feed: name, error: errorMessage };
     }
   });
