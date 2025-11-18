@@ -1,52 +1,57 @@
 {
-  "name": "fryge-rss-sync",
-  "version": "0.0.1",
-  "author": {
-    "name": "Daniel Goldshlack",
-    "email": "daniel@goldshlack.net"
-  },
-  "description": "Use this to create and maintain a local copy of all data from a set of rss feeds.",
-  "repository": "https://github.com/dangoldnj/fryge-rss-sync",
-  "license": "MIT",
-  "scripts": {
-    "start": "node server.js",
-    "test": "xo"
-  },
-  "dependencies": {
-    "davefeedread": "^0.5.14",
-    "isomorphic-fetch": "^3.0.0",
-    "node-fs": "^0.1.7"
-  },
-  "devDependencies": {
-    "xo": "0.34.1"
-  },
-  "xo": {
-    "rules": {
-      "comma-dangle": [
-        "error",
-        "always-multiline"
-      ],
-      "object-curly-spacing": [
-        "error",
-        "always"
-      ],
-      "operator-linebreak": [
-        "error",
-        "after",
-        { "overrides": { "?": "before", ":": "before" } }
-      ],
-      "prefer-promise-reject-errors": 0,
-      "template-curly-spacing": [
-        "error",
-        "always"
-      ],
-      "unicorn/filename-case": [
-        "error",
-        {
-          "case": "camelCase"
-        }
-      ]
+    "name": "fryge-rss-sync",
+    "version": "0.0.1",
+    "author": {
+        "name": "Daniel Goldshlack",
+        "email": "daniel@goldshlack.net"
     },
-    "space": true
-  }
+    "description": "Use this to create and maintain a local copy of all data from a set of rss feeds.",
+    "repository": "https://github.com/dangoldnj/fryge-rss-sync",
+    "license": "MIT",
+    "scripts": {
+        "start": "node server.js",
+        "test": "xo"
+    },
+    "dependencies": {
+        "davefeedread": "^0.5.14",
+        "node-fs": "^0.1.7",
+        "zx": "^8.0.2"
+    },
+    "devDependencies": {
+        "xo": "0.34.1"
+    },
+    "xo": {
+        "rules": {
+            "comma-dangle": [
+                "error",
+                "always-multiline"
+            ],
+            "object-curly-spacing": [
+                "error",
+                "always"
+            ],
+            "operator-linebreak": [
+                "error",
+                "after",
+                {
+                    "overrides": {
+                        "?": "before",
+                        ":": "before"
+                    }
+                }
+            ],
+            "prefer-promise-reject-errors": 0,
+            "template-curly-spacing": [
+                "error",
+                "always"
+            ],
+            "unicorn/filename-case": [
+                "error",
+                {
+                    "case": "camelCase"
+                }
+            ]
+        },
+        "space": true
+    }
 }

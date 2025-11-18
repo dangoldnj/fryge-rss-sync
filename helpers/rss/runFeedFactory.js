@@ -6,38 +6,28 @@ const {
     filterUnsafeFilenameChars,
 } = require('../local/filterUnsafeFilenameChars');
 const { getDefaultPolicy } = require('./getDefaultPolicy');
+const { reportError } = require('../local/reportError');
 const { readLocalData } = require('../local/readLocalData');
-const { runNextItemFactory } = require('./runNextItemFactory');
+const { runItemFactory } = require('./runItemFactory');
 const { writeItemMetadata } = require('../local/writeItemMetadata');
 
 const TIME_OUT_SECS = 30;
 
-const runNextFeedFactory = (feeds, options) => {
+const runFeedFactory = (feeds, options) => {
     const { topDefaultPolicy = {} } = options;
-    const maxFeeds = feeds.length;
-    let currentFeed = -1;
 
-    const runNextFeed = () => {
+    const runSingleFeed = currentFeed => {
+        const { name, policy: feedItemPolicy = {}, rss } = currentFeed;
+        const policy = Object.assign(
+            {},
+            getDefaultPolicy(),
+            topDefaultPolicy,
+            feedItemPolicy,
+        );
+        const { downloadRoot } = policy;
+
         return new Promise((resolve, reject) => {
             try {
-                currentFeed++;
-                if (currentFeed >= maxFeeds) {
-                    resolve(false);
-                    return;
-                }
-
-                const { name, policy: feedItemPolicy = {}, rss } = feeds[
-                    currentFeed
-                ];
-
-                const policy = Object.assign(
-                    {},
-                    getDefaultPolicy(),
-                    topDefaultPolicy,
-                    feedItemPolicy,
-                );
-                const { downloadRoot } = policy;
-
                 console.log(`\nLoading the feed '${name}' at '${rss}':`);
                 feedRead.parseUrl(
                     rss,
@@ -83,22 +73,26 @@ const runNextFeedFactory = (feeds, options) => {
                                 );
                             }
 
-                            const runNextItem = await runNextItemFactory({
+                            const itemRunFunctions = await runItemFactory({
                                 items,
                                 policy,
                                 title,
                             });
 
-                            let runLoop = true;
-                            while (runLoop) {
-                                runLoop = await runNextItem();
+                            for (
+                                let itemIdx = 0;
+                                itemIdx < itemRunFunctions.length;
+                                itemIdx++
+                            ) {
+                                const runNext = await itemRunFunctions[itemIdx]();
+                                if (!runNext) break;
                             }
 
-                            resolve(true);
+                            resolve({ success: true, feed: name });
                         } catch (error) {
                             reject(
                                 new Error(
-                                    `Error running next feed: ${currentFeed}, ${error}`,
+                                    `Error running feed '${name}': ${error}`,
                                 ),
                             );
                         }
@@ -107,16 +101,29 @@ const runNextFeedFactory = (feeds, options) => {
             } catch (error) {
                 reject(
                     new Error(
-                        `Error running next feed: ${currentFeed}, ${error}`,
+                        `Error preparing feed '${name || 'unknown'}': ${error}`,
                     ),
                 );
             }
         });
     };
 
-    return runNextFeed;
+    return feeds.map(currentFeed => async () => {
+        try {
+            const result = await runSingleFeed(currentFeed);
+            return result;
+        } catch (error) {
+            const name = currentFeed?.name || 'unknown';
+            const errorMessage =
+                typeof error === 'string' ? error : error?.message || error;
+            reportError(
+                `Error encountered while running feed '${name}': ${errorMessage}`,
+            );
+            return { success: false, feed: name, error: errorMessage };
+        }
+    });
 };
 
 module.exports = {
-    runNextFeedFactory,
+    runFeedFactory,
 };

@@ -1,18 +1,32 @@
-const { existsSync } = require('fs');
-const { mkdirSync } = require('node-fs');
+const { exists } = require('fs');
+const { mkdir } = require('node-fs');
 
 const ensureDirExists = dirName => {
-  return new Promise(resolve => {
-    const safeDirName = dirName.replace(/'/g, '\\\'');
-    if (existsSync(dirName)) {
-      resolve();
-      return;
-    }
+    return new Promise((resolve, reject) => {
+        const safeDirName = dirName.replace(/'/g, "\\'");
 
-    mkdirSync(safeDirName, 755, true);
-  });
+        exists(dirName, existsFlag => {
+            if (existsFlag) {
+                resolve();
+                return;
+            }
+
+            mkdir(safeDirName, 755, true, error => {
+                if (error) {
+                    reject(
+                        new Error(
+                            `Error creating directory: ${dirName}, ${error}`,
+                        ),
+                    );
+                    return;
+                }
+
+                resolve();
+            });
+        });
+    });
 };
 
 module.exports = {
-  ensureDirExists,
+    ensureDirExists,
 };

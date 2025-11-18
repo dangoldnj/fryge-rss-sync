@@ -9,6 +9,7 @@ const {
 const {
     keepFileExtensionAndFilter,
 } = require('../local/keepFileExtensionAndFilter');
+const { reportError } = require('../local/reportError');
 const { readLocalData } = require('../local/readLocalData');
 const { writeItemMetadata } = require('../local/writeItemMetadata');
 const { writeLocalData } = require('../local/writeLocalData');
@@ -52,7 +53,7 @@ const checkIfEnclosureExists = options => {
     };
 };
 
-const runNextItemFactory = async options => {
+const runItemFactory = async options => {
     const {
         items,
         policy: {
@@ -76,7 +77,6 @@ const runNextItemFactory = async options => {
     await ensureDirExists(metadataDirname);
 
     const maxItems = items.length;
-    let currentItem = -1;
     let itemCount = 0;
     let downloadedCount = 0;
     let errorCount = 0;
@@ -102,22 +102,18 @@ const runNextItemFactory = async options => {
         commentCompletion();
     };
 
-    const runNextItem = () => {
-        return new Promise(async (resolve, reject) => {
+    return items.map((currentItem, index) => () =>
+        new Promise(async (resolve, reject) => {
             try {
-                commentCompletion();
-                currentItem++;
-                if (currentItem >= maxItems) {
-                    commentCompletion({ forceComments: true });
-                    resolve(false);
-                    return;
-                }
+                const lastItem = index == items.length - 1;
+                const cleanup = () => {
+                    commentCompletion({ forceComments: lastItem });
+                };
 
-                const item = items[currentItem];
-                const { pubDate, guid, title, enclosures = [] } = item;
+                const { pubDate, guid, title, enclosures = [] } = currentItem;
                 if (Number(enclosures.length) < 1) {
                     resolve(true);
-                    return;
+                    return cleanup();
                 }
 
                 const { length, url = '' } = enclosures[0];
@@ -129,7 +125,7 @@ const runNextItemFactory = async options => {
                     ignoreByGuid && ignoreByGuid.includes(guid);
                 if (!url || !itemPubDateOK || ignoredByGuid) {
                     resolve(true);
-                    return;
+                    return cleanup();
                 }
 
                 itemCount++;
@@ -187,7 +183,7 @@ const runNextItemFactory = async options => {
                         showComments();
                     }
                     resolve(true);
-                    return;
+                    return cleanup();
                 }
 
                 const actualDestinationFilename = guidIncludedDestinationFilename;
@@ -211,7 +207,7 @@ const runNextItemFactory = async options => {
                         Number(savedSize) === Number(foundSizeInBytes)
                     ) {
                         resolve(true);
-                        return;
+                        return cleanup();
                     }
                 }
 
@@ -220,7 +216,7 @@ const runNextItemFactory = async options => {
                 );
                 showComments();
 
-                await writeItemMetadata(actualMetadataFilename, item);
+                await writeItemMetadata(actualMetadataFilename, currentItem);
                 await downloadFile(url, actualDestinationFilename);
                 downloadedCount++;
 
@@ -237,21 +233,18 @@ const runNextItemFactory = async options => {
                         newSizeInBytes.toString(),
                     );
                 }
-                resolve(true);
-            } catch (error) {
-                const formattedError = new Error(
-                    `Error running next item: ${currentItem}, ${error}`,
-                );
-                console.log(formattedError);
-                errorCount++;
-                reject(formattedError);
-            }
-        });
-    };
 
-    return runNextItem;
+                resolve(true);
+                cleanup();
+            } catch (error) {
+                errorCount++;
+                const errorString = `Error running item: ${currentItem}, ${error}`;
+                reportError(errorString, reject);
+            }
+        }),
+    );
 };
 
 module.exports = {
-    runNextItemFactory,
+    runItemFactory,
 };

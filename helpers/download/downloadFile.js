@@ -1,44 +1,25 @@
-// eslint-disable-next-line import/no-unassigned-import
-require('isomorphic-fetch');
-const fs = require('fs');
+const { createWriteStream } = require('node:fs');
+const { pipeline, Readable } = require('node:stream');
+const { promisify } = require('node:util');
 
-const downloadFile = async (url, localFilename) => {
-  const options = {
-    cache: 'no-store',
-    keepalive: false,
-    redirect: 'follow',
-    referrer: '',
-  };
-  // eslint-disable-next-line no-undef
-  const result = await fetch(url, options);
-  return new Promise((resolve, reject) => {
-    const {
-      body,
-      ok,
-      status,
-    } = result;
+const downloadFile = async (url, filePath) => {
+    const streamPipeline = promisify(pipeline);
+    const response = await fetch(url);
 
-    if (!ok) {
-      const err = `Status ${ status } encountered.`;
-      reject(`Error! Cannot download enclosure '${ url }': ${ err }`);
+    if (!response.ok) {
+        throw new Error(
+            `Error downloading file: ${url}, ${filePath}, status ${response.status} ${response.statusText}`,
+        );
     }
 
-    const file = fs.createWriteStream(localFilename);
-    body.pipe(file);
-    body.on('error', err => {
-      reject(`Error! Cannot download enclosure '${ url }': ${ err }`);
-    });
-    file.on('error', err => {
-      reject(`Error! Cannot write to file '${ localFilename }': ${ err }`);
-    });
-    file.on('finish', () => {
-      file.close(() => {
-        resolve();
-      });
-    });
-  });
+    const nodeReadable =
+        typeof response.body.getReader === 'function'
+            ? Readable.fromWeb(response.body)
+            : response.body;
+
+    await streamPipeline(nodeReadable, createWriteStream(filePath));
 };
 
 module.exports = {
-  downloadFile,
+    downloadFile,
 };
