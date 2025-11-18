@@ -1,13 +1,13 @@
-const { existsSync } = require('fs');
+const { existsSync } = require("fs");
 // eslint-disable-next-line unicorn/import-style
-const { resolve } = require('path');
+const { resolve } = require("path");
 
-const feedsPath = '../../feeds.json';
+const feedsPath = "../../feeds.json";
 const feedsFilepath = resolve(__dirname, feedsPath);
 const feedsPresent = existsSync(feedsFilepath);
 
 if (!feedsPresent) {
-  console.log('Create your personal `feeds.json`, please!');
+  console.log("Create your personal `feeds.json`, please!");
 }
 
 const emptyFeedObject = () => ({
@@ -15,14 +15,9 @@ const emptyFeedObject = () => ({
   feeds: [],
 });
 
-const FEEDS = feedsPresent
-  ? require(feedsPath)
-  : emptyFeedObject();
+const FEEDS = feedsPresent ? require(feedsPath) : emptyFeedObject();
 
-const {
-  defaultPolicy = {},
-  feeds = [],
-} = FEEDS;
+const { defaultPolicy = {}, feeds = [] } = FEEDS;
 
 const getFeedDefaultPolicy = () => {
   return defaultPolicy;

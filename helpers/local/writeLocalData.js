@@ -1,22 +1,22 @@
-const fs = require('fs');
+const fs = require("fs");
 
 const writeLocalData = async (path, data) => {
-    return new Promise((resolve, reject) => {
-        fs.writeFile(path, data, 'utf8', error => {
-            if (error) {
-                reject(
-                    new Error(
-                        `Error writing to control file: ${path}, ${data}, ${error}`,
-                    ),
-                );
-                return;
-            }
+  return new Promise((resolve, reject) => {
+    fs.writeFile(path, data, "utf8", (error) => {
+      if (error) {
+        reject(
+          new Error(
+            `Error writing to control file: ${path}, ${data}, ${error}`,
+          ),
+        );
+        return;
+      }
 
-            resolve();
-        });
+      resolve();
     });
+  });
 };
 
 module.exports = {
-    writeLocalData,
+  writeLocalData,
 };
