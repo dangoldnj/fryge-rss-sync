@@ -192,6 +192,10 @@ const runFeedFactory = (feeds, options) => {
               console.log(
                 `Directory contents changed for '${name}', refreshing feed items...`,
               );
+            } else {
+              console.log(
+                `New items detected, downloading new feed items...`,
+              );
             }
 
             const itemRunFunctions = await runItemFactory({
