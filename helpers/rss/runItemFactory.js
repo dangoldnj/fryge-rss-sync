@@ -49,8 +49,8 @@ const checkIfEnclosureExists = (options) => {
     fileExistsAtAll,
     fileExistsCorrectly,
     foundSizeInBytes,
-    rssSizeProvided,
     itemComment,
+    rssSizeProvided,
   };
 };
 
@@ -96,7 +96,13 @@ const runItemFactory = async (options) => {
     commentCompletion();
   };
 
-  return items.map(
+  const getStats = () => ({
+    itemsDownloaded: downloadedCount,
+    itemsErrored: errorCount,
+    itemsSeen: itemCount,
+  });
+
+  const itemRunFunctions = items.map(
     (currentItem, index) => () =>
       new Promise(async (resolve, reject) => {
         try {
@@ -157,8 +163,8 @@ const runItemFactory = async (options) => {
             fileExistsAtAll: guidAddedFileExists,
             fileExistsCorrectly: guidAddedFileIsCorrect,
             foundSizeInBytes,
-            rssSizeProvided: guidAddedSizeProvided,
             itemComment: guidAddedItemComment,
+            rssSizeProvided: guidAddedSizeProvided,
           } = checkIfEnclosureExists({
             destinationFilepath: guidIncludedDestinationFilename,
             length,
@@ -234,6 +240,10 @@ const runItemFactory = async (options) => {
         }
       }),
   );
+
+  itemRunFunctions.getStats = getStats;
+
+  return itemRunFunctions;
 };
 
 module.exports = {

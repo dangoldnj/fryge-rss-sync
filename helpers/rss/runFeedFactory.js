@@ -89,6 +89,14 @@ const runFeedFactory = (feeds, options) => {
   const { topDefaultPolicy = {} } = options;
 
   const runSingleFeed = (currentFeed) => {
+    const startedAt = Date.now();
+    const baseTiming = { startedAt: new Date(startedAt).toISOString() };
+    const buildTiming = () => ({
+      ...baseTiming,
+      completedAt: new Date().toISOString(),
+      durationMs: Date.now() - startedAt,
+    });
+
     const { name, policy: feedItemPolicy = {}, rss } = currentFeed;
     const policy = Object.assign(
       {},
@@ -157,9 +165,15 @@ const runFeedFactory = (feeds, options) => {
               if (!deepCheckRequired) {
                 console.log(`No changes detected for '${name}', skipping.`);
                 resolve({
-                  success: true,
                   feed: name,
                   skipped: true,
+                  stats: {
+                    itemsDownloaded: 0,
+                    itemsErrored: 0,
+                    itemsSeen: 0,
+                  },
+                  success: true,
+                  timing: buildTiming(),
                 });
                 return;
               }
@@ -181,10 +195,16 @@ const runFeedFactory = (feeds, options) => {
                 };
                 await writeItemMetadata(manifestFilename, manifestPayload);
                 resolve({
-                  success: true,
+                  deepCheck: true,
                   feed: name,
                   skipped: true,
-                  deepCheck: true,
+                  stats: {
+                    itemsDownloaded: 0,
+                    itemsErrored: 0,
+                    itemsSeen: 0,
+                  },
+                  success: true,
+                  timing: buildTiming(),
                 });
                 return;
               }
@@ -213,18 +233,31 @@ const runFeedFactory = (feeds, options) => {
               if (!runNext) break;
             }
 
+            const stats = itemRunFunctions.getStats
+              ? itemRunFunctions.getStats()
+              : {
+                  itemsDownloaded: 0,
+                  itemsErrored: 0,
+                  itemsSeen: 0,
+                };
+
             const directorySnapshot = await buildDirectorySnapshot(feedDirname);
 
             await writeItemMetadata(manifestFilename, {
-              signature: feedSignature,
-              itemCount: items.length,
-              lastPubDate: items[0]?.pubDate || null,
-              updatedAt: new Date().toISOString(),
-              lastDeepCheck: new Date().toISOString(),
               directorySnapshot,
+              itemCount: items.length,
+              lastDeepCheck: new Date().toISOString(),
+              lastPubDate: items[0]?.pubDate || null,
+              signature: feedSignature,
+              updatedAt: new Date().toISOString(),
             });
 
-            resolve({ success: true, feed: name });
+            resolve({
+              feed: name,
+              stats,
+              success: true,
+              timing: buildTiming(),
+            });
           } catch (error) {
             reject(
               new Error(`Error running feed '${name}': ${formatError(error)}`),

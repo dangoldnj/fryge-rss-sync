@@ -19,7 +19,7 @@ const runChildProcess = (runFeedScript, feedIdx) =>
 
     child.on("exit", (code, signal) => {
       if (!code && !signal) {
-        resolve();
+        resolve(lastMessage);
         return;
       }
 
@@ -47,16 +47,63 @@ const runChildProcess = (runFeedScript, feedIdx) =>
     topDefaultPolicy: getFeedDefaultPolicy(),
   });
 
+  const formatDuration = (ms) => `${(ms / 1000).toFixed(1)}s`;
+  const feedSummaries = [];
+  const overallStartedAt = Date.now();
   const runFeedScript = path.resolve(__dirname, "runFeed.js");
   for (let feedIdx = 0; feedIdx < feedRunFunctions.length; feedIdx++) {
     const feedName = feeds[feedIdx]?.name || `index ${feedIdx}`;
     try {
-      await runChildProcess(runFeedScript, feedIdx);
+      const message = await runChildProcess(runFeedScript, feedIdx);
+      const summary = message || {};
+      feedSummaries.push({
+        deepCheck: summary.deepCheck,
+        feed: summary.feed || feedName,
+        skipped: summary.skipped,
+        stats: summary.stats,
+        status: summary.status || "completed",
+        timing: summary.timing,
+      });
     } catch (error) {
       console.log(`Feed '${feedName}' failed: ${formatError(error)}`);
+      feedSummaries.push({
+        error: formatError(error),
+        feed: feedName,
+        status: "failed",
+      });
     }
   }
 
+  console.log("\n.. Feed Summary ..");
+
+  const totals = feedSummaries.reduce(
+    (acc, summary) => {
+      if (summary.status !== "completed" || !summary.stats) return acc;
+      acc.itemsSeen += Number(summary.stats.itemsSeen) || 0;
+      acc.itemsDownloaded += Number(summary.stats.itemsDownloaded) || 0;
+      acc.itemsErrored += Number(summary.stats.itemsErrored) || 0;
+      return acc;
+    },
+    { itemsSeen: 0, itemsDownloaded: 0, itemsErrored: 0 },
+  );
+
+  const counts = feedSummaries.reduce(
+    (acc, summary) => {
+      if (summary.status === "completed") acc.completed += 1;
+      if (summary.skipped) acc.skipped += 1;
+      if (summary.status === "failed") acc.failed += 1;
+      return acc;
+    },
+    { completed: 0, skipped: 0, failed: 0 },
+  );
+
+  const overallDuration = Date.now() - overallStartedAt;
+  console.log(
+    `Feeds: ${counts.completed} completed, ${counts.skipped} skipped, ${counts.failed} failed in ${formatDuration(overallDuration)}`,
+  );
+  console.log(
+    `Items: ${totals.itemsSeen} seen, ${totals.itemsDownloaded} downloaded, ${totals.itemsErrored} errors in ${formatDuration(overallDuration)}`,
+  );
   console.log(`\r\nCompleted ${new Date()}`);
   process.exit();
 })();

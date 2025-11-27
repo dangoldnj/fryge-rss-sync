@@ -16,7 +16,11 @@ const feedRunFunctions = runFeedFactory(feeds, {
         result?.error ||
         `Feed ${result?.feed ?? feedIdx} failed with an unknown error.`;
       if (process.send) {
-        process.send({ status: "error", error: errorMessage });
+        process.send({
+          error: errorMessage,
+          feed: result?.feed ?? feedIdx,
+          status: "error",
+        });
       } else {
         console.log(errorMessage);
       }
@@ -24,13 +28,21 @@ const feedRunFunctions = runFeedFactory(feeds, {
       return;
     }
 
+    const { deepCheck, feed, skipped, stats = {}, timing } = result;
+
     if (process.send) {
-      process.send({ status: "completed" });
+      process.send({ deepCheck, feed, skipped, stats, status: "completed", timing });
+    } else {
+      console.log(
+        `Feed '${feed}' completed` +
+          (skipped ? " (skipped)" : "") +
+          ` - stats: ${JSON.stringify(stats)} - timing: ${JSON.stringify(timing)}`,
+      );
     }
     process.exit(0);
   } catch (err) {
     if (process.send) {
-      process.send({ status: "error", error: formatError(err) });
+      process.send({ error: formatError(err), status: "error" });
     } else {
       console.log(formatError(err));
     }
