@@ -145,6 +145,7 @@ const runFeedFactory = (feeds, options) => {
               }
             }
 
+            console.log(`Calculating local signature...`);
             const feedSignature = getFeedSignature(parsedFeed.head, items);
 
             const signatureMatches =
@@ -162,6 +163,7 @@ const runFeedFactory = (feeds, options) => {
                 });
                 return;
               }
+              console.log(`Deep scanning...`);
 
               const latestSnapshot = await buildDirectorySnapshot(feedDirname);
               const storedSnapshot = existingManifest.directorySnapshot || {};
