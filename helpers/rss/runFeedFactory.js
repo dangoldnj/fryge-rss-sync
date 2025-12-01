@@ -15,6 +15,27 @@ const { writeItemMetadata } = require("../local/writeItemMetadata");
 
 const TIME_OUT_SECS = 30;
 const DIR_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const DIR_CHECK_OFFSET_RANGE_MS = 6 * 60 * 60 * 1000; // up to +6h per feed
+const JITTER_PERCENT = 0.2; // +/-20% jitter on each decision
+const DURATION_SLACK_MULTIPLIER = 1; // add last run duration once to spacing
+
+const hashStringToInt = (str = "") => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0; // force 32-bit
+  }
+  return Math.abs(hash);
+};
+
+const getDeepCheckInterval = (manifest, feedKey) => {
+  if (manifest && Number.isFinite(manifest.deepCheckIntervalMs)) {
+    return manifest.deepCheckIntervalMs;
+  }
+
+  const hashOffset = hashStringToInt(feedKey) % DIR_CHECK_OFFSET_RANGE_MS;
+  return DIR_CHECK_INTERVAL_MS + hashOffset;
+};
 
 const buildDirectorySnapshot = async (dirPath) => {
   const snapshot = {};
@@ -72,7 +93,7 @@ const snapshotsMatch = (a = {}, b = {}) => {
   return true;
 };
 
-const shouldPerformDeepCheck = (manifest) => {
+const shouldPerformDeepCheck = (manifest, feedKey) => {
   if (!manifest || !manifest.lastDeepCheck) {
     return true;
   }
@@ -82,7 +103,14 @@ const shouldPerformDeepCheck = (manifest) => {
     return true;
   }
 
-  return Date.now() - lastCheckTime > DIR_CHECK_INTERVAL_MS;
+  const baseInterval = getDeepCheckInterval(manifest, feedKey);
+  const jitterMultiplier = 1 + (Math.random() * 2 - 1) * JITTER_PERCENT;
+  const durationSlack =
+    (manifest.lastRunDurationMs || 0) * DURATION_SLACK_MULTIPLIER;
+
+  const effectiveInterval = baseInterval * jitterMultiplier + durationSlack;
+
+  return Date.now() - lastCheckTime > effectiveInterval;
 };
 
 const runFeedFactory = (feeds, options) => {
@@ -98,6 +126,7 @@ const runFeedFactory = (feeds, options) => {
     });
 
     const { name, policy: feedItemPolicy = {}, rss } = currentFeed;
+    const feedKey = `${name || "unknown"}:${rss || ""}`;
     const policy = Object.assign(
       {},
       getDefaultPolicy(),
@@ -155,15 +184,22 @@ const runFeedFactory = (feeds, options) => {
 
             console.log(`Calculating local signature...`);
             const feedSignature = getFeedSignature(parsedFeed.head, items);
+            const deepCheckIntervalMs = getDeepCheckInterval(
+              existingManifest,
+              feedKey,
+            );
 
             const signatureMatches =
               existingManifest && existingManifest.signature === feedSignature;
 
             if (signatureMatches) {
-              const deepCheckRequired =
-                shouldPerformDeepCheck(existingManifest);
+              const deepCheckRequired = shouldPerformDeepCheck(
+                existingManifest,
+                feedKey,
+              );
               if (!deepCheckRequired) {
                 console.log(`No changes detected for '${name}', skipping.`);
+                const timing = buildTiming();
                 resolve({
                   feed: name,
                   skipped: true,
@@ -173,7 +209,7 @@ const runFeedFactory = (feeds, options) => {
                     itemsSeen: 0,
                   },
                   success: true,
-                  timing: buildTiming(),
+                  timing,
                 });
                 return;
               }
@@ -188,9 +224,12 @@ const runFeedFactory = (feeds, options) => {
 
               if (snapshotsAreEqual) {
                 console.log(`No changes detected for '${name}' (deep check).`);
+                const timing = buildTiming();
                 const manifestPayload = {
                   ...existingManifest,
+                  deepCheckIntervalMs,
                   lastDeepCheck: new Date().toISOString(),
+                  lastRunDurationMs: timing.durationMs,
                   directorySnapshot: latestSnapshot,
                 };
                 await writeItemMetadata(manifestFilename, manifestPayload);
@@ -204,7 +243,7 @@ const runFeedFactory = (feeds, options) => {
                     itemsSeen: 0,
                   },
                   success: true,
-                  timing: buildTiming(),
+                  timing,
                 });
                 return;
               }
@@ -213,9 +252,7 @@ const runFeedFactory = (feeds, options) => {
                 `Directory contents changed for '${name}', refreshing feed items...`,
               );
             } else {
-              console.log(
-                `New items detected, downloading new feed items...`,
-              );
+              console.log('New items detected, downloading new feed items...');
             }
 
             const itemRunFunctions = await runItemFactory({
@@ -243,20 +280,22 @@ const runFeedFactory = (feeds, options) => {
 
             const directorySnapshot = await buildDirectorySnapshot(feedDirname);
 
+            const timing = buildTiming();
             await writeItemMetadata(manifestFilename, {
               directorySnapshot,
               itemCount: items.length,
               lastDeepCheck: new Date().toISOString(),
               lastPubDate: items[0]?.pubDate || null,
+              deepCheckIntervalMs,
+              lastRunDurationMs: timing.durationMs,
               signature: feedSignature,
               updatedAt: new Date().toISOString(),
             });
-
             resolve({
               feed: name,
               stats,
               success: true,
-              timing: buildTiming(),
+              timing,
             });
           } catch (error) {
             reject(
