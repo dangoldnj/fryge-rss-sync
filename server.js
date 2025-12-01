@@ -47,7 +47,14 @@ const runChildProcess = (runFeedScript, feedIdx) =>
     topDefaultPolicy: getFeedDefaultPolicy(),
   });
 
-  const formatDuration = (ms) => `${(ms / 1000).toFixed(1)}s`;
+  const formatDuration = (ms) => {
+    const totalSeconds = Math.round(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes === 0) return `${seconds}s`;
+    return `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
+  };
+
   const feedSummaries = [];
   const overallStartedAt = Date.now();
   const runFeedScript = path.resolve(__dirname, "runFeed.js");
