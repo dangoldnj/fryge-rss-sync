@@ -14,7 +14,8 @@ const { runItemFactory } = require("./runItemFactory");
 const { writeItemMetadata } = require("../local/writeItemMetadata");
 
 const TIME_OUT_SECS = 30;
-const DIR_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const DIR_CHECK_INTERVAL_HOURS = 168;
+const DIR_CHECK_INTERVAL_MS = DIR_CHECK_INTERVAL_HOURS * 60 * 60 * 1000;
 const DIR_CHECK_OFFSET_RANGE_MS = 6 * 60 * 60 * 1000; // up to +6h per feed
 const JITTER_PERCENT = 0.2; // +/-20% jitter on each decision
 const DURATION_SLACK_MULTIPLIER = 1; // add last run duration once to spacing
